@@ -1,7 +1,7 @@
 ---
 id: 005
 title: Member seed ingestion (timestamped, idempotent)
-status: tests-authored
+status: ready-for-merge
 depends_on: [002, 004]
 branch: ticket/005-member-ingestion
 base_branch: ticket/004-ontology-snomed-seed
