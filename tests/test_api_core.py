@@ -100,6 +100,14 @@ def test_get_member_detail(api_client):
     assert any("rotator cuff" in inj.lower() for inj in detail["injuries"])
     assert isinstance(detail["goals"], list) and detail["goals"]
     assert isinstance(detail["recent_workouts"], list)
+    # Biometric readings power the Trends charts: chronological, typed points including Ava's
+    # resting heart rate.
+    assert isinstance(detail["biometrics"], list) and detail["biometrics"]
+    for pt in detail["biometrics"]:
+        assert set(pt) >= {"timestamp", "type", "value"}
+    assert any(pt["type"] == "resting_heart_rate" for pt in detail["biometrics"])
+    ts = [pt["timestamp"] for pt in detail["biometrics"]]
+    assert ts == sorted(ts), "biometrics must be returned in chronological order"
 
 
 def test_get_unknown_member_returns_404(api_client):

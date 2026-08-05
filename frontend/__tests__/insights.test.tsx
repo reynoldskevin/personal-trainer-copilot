@@ -34,6 +34,12 @@ const AVA_DETAIL = {
     { timestamp: '2026-01-13T20:00:00+00:00', planned: 4, completed: 3 },
     { timestamp: '2026-01-27T20:00:00+00:00', planned: 4, completed: 4 },
   ],
+  biometrics: [
+    { timestamp: '2026-01-06T07:30:00+00:00', type: 'resting_heart_rate', value: 61 },
+    { timestamp: '2026-01-27T07:28:00+00:00', type: 'resting_heart_rate', value: 58 },
+    { timestamp: '2026-01-06T07:31:00+00:00', type: 'body_weight_kg', value: 69.1 },
+    { timestamp: '2026-01-27T07:29:00+00:00', type: 'body_weight_kg', value: 68.2 },
+  ],
 };
 
 const AVA_BUNDLE = {
@@ -137,20 +143,29 @@ test('the Insights tab shows a loading affordance before the report arrives', as
   );
 });
 
-test('the Trends tab visualizes adherence AND biometric trends', async () => {
+test('the Trends tab renders adherence, heart rate and body weight as LINE charts', async () => {
   installFetch();
   const user = await openHub();
 
   await user.click(screen.getByRole('tab', { name: /Trends/ }));
 
   expect(document.querySelector('[data-region="trends-metrics"]')).toBeInTheDocument();
-  expect(document.querySelectorAll('[data-component="MetricStat"]').length).toBeGreaterThanOrEqual(1);
-  expect(document.querySelector('[data-region="trends-charts"]')).toBeInTheDocument();
-  // Adherence-over-time chart is derived from the loaded member detail (synchronous)...
-  expect(document.querySelector('[data-component="TrendChart"]')).toBeInTheDocument();
-  // ...and once the trend data loads, a biometric-progression chart is shown too (the fixture
-  // carries a resting_heart_rate trend), so both halves of the contract are visualized.
-  await waitFor(() =>
-    expect(document.querySelectorAll('[data-component="TrendChart"]').length).toBeGreaterThanOrEqual(2)
-  );
+  expect(document.querySelectorAll('[data-component="MetricStat"]').length).toBeGreaterThanOrEqual(2);
+
+  const charts = document.querySelector('[data-region="trends-charts"]') as HTMLElement;
+  expect(charts).toBeInTheDocument();
+
+  // Adherence + one chart per biometric type (resting HR, body weight) = 3 charts.
+  const trendCharts = charts.querySelectorAll('[data-component="TrendChart"]');
+  expect(trendCharts.length).toBe(3);
+
+  // Each is a LINE chart (an SVG `kg-spark` spark line), NOT a bar chart.
+  trendCharts.forEach((c) => {
+    expect(c.querySelector('svg.kg-spark')).toBeInTheDocument();
+    expect(c.querySelector('.kg-bar')).toBeNull();
+  });
+
+  // Heart rate and body weight each get their own chart.
+  expect(within(charts).getByText(/Resting HR/i)).toBeInTheDocument();
+  expect(within(charts).getByText(/Body weight/i)).toBeInTheDocument();
 });

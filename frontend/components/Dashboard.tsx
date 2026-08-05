@@ -140,10 +140,10 @@ export default function Dashboard() {
 
   // Fetch the insight report (and its supporting bundle) the first time the
   // Insights or Trends tab is activated for the selected member — mirrors the
-  // workout tab. The `!insight` guard means it fetches once and never loops;
-  // Trends only reads `insight.trends.biometrics`, Insights also uses the bundle.
+  // workout tab. The `!insight` guard means it fetches once and never loops.
+  // (The Trends tab charts its own series from the member detail, so it needs no insight fetch.)
   useEffect(() => {
-    if ((activeTab !== 'Insights' && activeTab !== 'Trends') || !selectedId || insight) return;
+    if (activeTab !== 'Insights' || !selectedId || insight) return;
     let active = true;
     setInsightState('loading');
     const memberId = selectedId;
@@ -342,7 +342,7 @@ function MemberHub({
         {activeTab === 'Insights' && (
           <InsightsTab insight={insight} bundle={insightBundle} state={insightState} />
         )}
-        {activeTab === 'Trends' && <TrendsTab detail={detail} insight={insight} />}
+        {activeTab === 'Trends' && <TrendsTab detail={detail} />}
         {activeTab === 'Chat' && (
           <ChatTab
             turns={chatTurns}
@@ -502,7 +502,29 @@ function InsightsTab({ insight, bundle, state }: InsightsTabProps) {
   );
 }
 
-function TrendsTab({ detail, insight }: { detail: MemberDetail; insight: InsightReport | null }) {
+const BIOMETRIC_LABEL: Record<string, string> = {
+  resting_heart_rate: 'Resting HR',
+  body_weight_kg: 'Body weight',
+  sleep_hours: 'Sleep',
+};
+const BIOMETRIC_UNIT: Record<string, string> = {
+  resting_heart_rate: 'bpm',
+  body_weight_kg: 'kg',
+  sleep_hours: 'h',
+};
+
+function shortDate(ts: string): string {
+  return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function deltaOf(values: number[], decimals: number, unit: string) {
+  const d = values[values.length - 1] - values[0];
+  const dir: 'up' | 'down' | 'flat' = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
+  const glyph = d > 0 ? '▲' : d < 0 ? '▼' : '–';
+  return { text: `${glyph} ${Math.abs(d).toFixed(decimals)}${unit}`, dir };
+}
+
+function TrendsTab({ detail }: { detail: MemberDetail }) {
   const totals = detail.adherence.reduce(
     (acc, a) => {
       acc.planned += a.planned;
@@ -514,72 +536,92 @@ function TrendsTab({ detail, insight }: { detail: MemberDetail; insight: Insight
   const adherencePct =
     totals.planned > 0 ? Math.round((totals.completed / totals.planned) * 100) : 0;
 
-  // Adherence chart derives synchronously from the loaded member detail so it
-  // shows immediately, independent of the insight fetch.
-  const points = detail.adherence.map((a, i) => ({
-    key: a.timestamp || String(i),
-    label: new Date(a.timestamp).toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-    }),
-    value: a.planned > 0 ? Math.round((a.completed / a.planned) * 100) : 0,
-  }));
+  // Adherence over time — sorted chronologically so the line reads left → right in time.
+  const adherenceSeries = [...detail.adherence]
+    .sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+    .map((a) => ({
+      label: shortDate(a.timestamp),
+      value: a.planned > 0 ? Math.round((a.completed / a.planned) * 100) : 0,
+    }));
+  const adherenceDelta = deltaOf(
+    adherenceSeries.map((p) => p.value),
+    0,
+    '%'
+  );
 
-  // Biometric trends arrive with the insight; degenerate cases (still loading,
-  // failed, or none present) simply render nothing extra — no crash.
-  const biometrics = insight?.trends?.biometrics ?? [];
-  const labelFor = (type: string) => type.replace(/_/g, ' ');
+  // One line chart per biometric type the member has readings for (resting HR, body weight, …).
+  const byType = new Map<string, number[]>();
+  const tsByType = new Map<string, string[]>();
+  for (const b of detail.biometrics) {
+    (byType.get(b.type) ?? byType.set(b.type, []).get(b.type)!).push(b.value);
+    (tsByType.get(b.type) ?? tsByType.set(b.type, []).get(b.type)!).push(b.timestamp);
+  }
+  const biometricCharts = [...byType.entries()].map(([type, values], i) => {
+    const decimals = values.some((v) => !Number.isInteger(v)) ? 1 : 0;
+    const unit = BIOMETRIC_UNIT[type] ?? '';
+    return {
+      type,
+      decimals,
+      unit,
+      label: BIOMETRIC_LABEL[type] ?? type.replace(/_/g, ' '),
+      chartTone: (i % 2 === 0 ? 'info' : 'accent-2') as 'info' | 'accent-2',
+      statTone: (i % 2 === 0 ? 'info' : 'teal') as 'info' | 'teal',
+      points: (tsByType.get(type) ?? []).map((ts, j) => ({
+        label: shortDate(ts),
+        value: values[j],
+      })),
+      latest: values[values.length - 1],
+      delta: deltaOf(values, decimals, unit),
+    };
+  });
 
   return (
     <div className="kg-stack">
-      <div
-        data-region="trends-metrics"
-        className="kg-grid"
-        style={{ gridTemplateColumns: '1.55fr 1fr' }}
-      >
+      <div data-region="trends-metrics" className="kg-grid kg-g4">
         <MetricStat
-          label="Overall adherence"
+          label="Adherence"
           value={String(adherencePct)}
           unit="%"
-          pct={adherencePct}
+          tone="accent"
+          tight
+          delta={adherenceSeries.length > 1 ? adherenceDelta : undefined}
           sub={`${totals.completed}/${totals.planned}`}
         />
         <MetricStat
           label="Sessions logged"
           value={String(detail.recent_workouts.length)}
-          tone="safe"
+          tone="teal"
+          tight
         />
-        {biometrics.map((b) => (
+        {biometricCharts.map((c) => (
           <MetricStat
-            key={b.type}
-            label={labelFor(b.type)}
-            value={String(b.last_value)}
-            sub={`${b.direction} · ${b.slope_per_week > 0 ? '+' : ''}${b.slope_per_week}/wk`}
-            tone={b.direction === 'rising' ? 'warn' : 'safe'}
+            key={c.type}
+            label={c.label}
+            value={c.latest.toFixed(c.decimals)}
+            unit={c.unit}
+            tone={c.statTone}
+            tight
+            delta={c.points.length > 1 ? c.delta : undefined}
           />
         ))}
       </div>
 
       <div data-region="trends-charts" className="kg-stack">
-        <div className="kg-card">
-          <h2 className="kg-h1">Adherence over time</h2>
-          <div style={{ marginTop: 'var(--space-md)' }}>
-            <TrendChart points={points} unit="%" />
-          </div>
-        </div>
-        {biometrics.map((b) => (
-          <div className="kg-card" key={b.type}>
-            <h2 className="kg-h1">{labelFor(b.type)}</h2>
-            <div style={{ marginTop: 'var(--space-md)' }}>
+        <TrendChart title="Adherence" points={adherenceSeries} unit="%" tone="accent" />
+        {biometricCharts.length > 0 && (
+          <div className="kg-grid kg-g2">
+            {biometricCharts.map((c) => (
               <TrendChart
-                points={[
-                  { key: 'start', label: 'start', value: b.first_value },
-                  { key: 'end', label: 'end', value: b.last_value },
-                ]}
+                key={c.type}
+                title={c.label}
+                points={c.points}
+                unit={c.unit}
+                tone={c.chartTone}
+                decimals={c.decimals}
               />
-            </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
     </div>
   );

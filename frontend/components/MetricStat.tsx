@@ -6,9 +6,22 @@ interface MetricStatProps {
   pct?: number;
   tone?: 'accent' | 'info' | 'safe' | 'teal' | 'warn';
   sub?: string;
+  /** Compact tile variant used in the dense Trends metric row. */
+  tight?: boolean;
+  /** Optional up/down/flat change indicator shown in the tile foot. */
+  delta?: { text: string; dir: 'up' | 'down' | 'flat' };
 }
 
-export default function MetricStat({ label, value, unit, pct, tone = 'accent', sub }: MetricStatProps) {
+export default function MetricStat({
+  label,
+  value,
+  unit,
+  pct,
+  tone = 'accent',
+  sub,
+  tight = false,
+  delta,
+}: MetricStatProps) {
   if (pct != null) {
     return (
       <div className="kg-stat kg-stat--accent kg-gauge" data-component="MetricStat">
@@ -37,7 +50,10 @@ export default function MetricStat({ label, value, unit, pct, tone = 'accent', s
   }
 
   return (
-    <div className={`kg-stat kg-stat--${tone}`} data-component="MetricStat">
+    <div
+      className={`kg-stat kg-stat--${tone}${tight ? ' kg-stat--tight' : ''}`}
+      data-component="MetricStat"
+    >
       <div className="kg-stat__head">
         <p className="kg-stat__label">{label}</p>
       </div>
@@ -46,7 +62,11 @@ export default function MetricStat({ label, value, unit, pct, tone = 'accent', s
           {value}
           {unit && <span className="kg-unit">{unit}</span>}
         </p>
-        {sub && <span className="kg-mono">{sub}</span>}
+        {delta ? (
+          <span className={`kg-delta kg-delta--${delta.dir}`}>{delta.text}</span>
+        ) : (
+          sub && <span className="kg-mono">{sub}</span>
+        )}
       </div>
     </div>
   );

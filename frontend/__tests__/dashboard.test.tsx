@@ -33,6 +33,10 @@ const AVA_DETAIL = {
   goals: ['Rehab right shoulder and press pain-free', 'Return to a bodyweight squat for 5 reps'],
   recent_workouts: [{ timestamp: '2026-01-27T08:45:00+00:00', exercises: ['Barbell back squat'] }],
   adherence: [{ timestamp: '2026-01-27T20:00:00+00:00', planned: 4, completed: 4 }],
+  biometrics: [
+    { timestamp: '2026-01-06T07:30:00+00:00', type: 'resting_heart_rate', value: 61 },
+    { timestamp: '2026-01-27T07:28:00+00:00', type: 'resting_heart_rate', value: 58 },
+  ],
 };
 
 const AVA_PLAN = {
