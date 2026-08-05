@@ -19,7 +19,6 @@ import pytest
 
 from app.generation import guardrails, workout
 
-
 # ----------------------- input validation -----------------------
 
 def test_validate_member_request_accepts_a_real_id():
