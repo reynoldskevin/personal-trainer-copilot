@@ -1,0 +1,19 @@
+/* tokens.css — copied from /design/tokens.css. Consume ONLY these vars. */
+:root{
+  --color-bg:#f4f4f5;
+  --color-surface:#ffffff;
+  --color-text:#1c1c1e;
+  --color-text-muted:#6b7280;
+  --color-border:#d4d4d8;
+  --color-accent:#3b3b3b;
+  /* safety family — powers SafetyFlag / StatusChip / RiskFlag */
+  --color-safe:#3f6f46;
+  --color-warn:#8a6d1f;
+  --color-danger:#8a2f2f;
+  --color-info:#33506e;
+  --space-xs:4px; --space-sm:8px; --space-md:16px; --space-lg:24px; --space-xl:40px;
+  --radius-sm:4px; --radius-md:8px; --radius-card:12px; --radius-pill:999px;
+  --font-display:system-ui,-apple-system,sans-serif;
+  --font-body:system-ui,-apple-system,sans-serif;
+  --font-mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
