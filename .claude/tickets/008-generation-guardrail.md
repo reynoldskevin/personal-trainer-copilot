@@ -1,13 +1,13 @@
 ---
 id: 008
 title: Generation — WorkoutPlan + injury-safe guardrail (basic)
-status: tests-authored
+status: ready-for-merge
 depends_on: [003, 007]
 branch: ticket/008-generation-guardrail
 base_branch: ticket/007-hybrid-retrieval
 test_command: ".venv/bin/python -m pytest tests/test_generation_workout.py -q"
 full_suite_command: ".venv/bin/ruff check . && .venv/bin/mypy app && .venv/bin/python -m pytest -q"
-attempts: 0
+attempts: 1
 ---
 
 ## Description
