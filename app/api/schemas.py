@@ -35,6 +35,17 @@ class GenerateWorkoutRequest(BaseModel):
     query: str | None = None
 
 
+class ChatRequest(BaseModel):
+    """Request body for ``POST /chat``.
+
+    ``member_id`` and ``message`` are both required (omitting either yields a 422). ``message``
+    is the coach's question about the member, answered grounded in the member's context.
+    """
+
+    member_id: str
+    message: str
+
+
 class MemberSummary(BaseModel):
     """A compact member listing entry returned by ``GET /members``."""
 
