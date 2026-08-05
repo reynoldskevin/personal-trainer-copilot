@@ -29,6 +29,7 @@ from typing import TypedDict
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel
 
+from app.generation import guardrails
 from app.graph.client import Neo4jClient
 from app.llm.provider import LLMProvider
 from app.retrieval import service
@@ -78,14 +79,12 @@ def filter_contraindicated(
     ``contraindicated``, and ``removed_ids`` lists the contraindicated ids in their order of
     appearance.
     """
-    unsafe = set(contraindicated)
-    kept: list[PlannedExercise] = []
-    removed_ids: list[str] = []
-    for exercise in exercises:
-        if exercise.exercise_id in unsafe:
-            removed_ids.append(exercise.exercise_id)
-        else:
-            kept.append(exercise)
+    removed_ids = guardrails.check_exercises_safe(
+        [exercise.exercise_id for exercise in exercises],
+        contraindicated,
+    )
+    unsafe = set(removed_ids)
+    kept = [exercise for exercise in exercises if exercise.exercise_id not in unsafe]
     return kept, removed_ids
 
 
