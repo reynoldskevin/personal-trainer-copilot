@@ -24,12 +24,21 @@ string-interpolated), matching the injection-safe pattern of :mod:`app.graph.cli
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any
+
 from pydantic import BaseModel
 
 from app.graph.client import Neo4jClient
 from app.ingestion import ontology
 from app.llm.provider import LLMProvider
 from app.retrieval import embeddings
+from app.retrieval.temporal import (
+    TimeWindow,
+    TrendSummary,
+    compute_trends,
+    filter_window,
+)
 
 # Default token budget for a fused context bundle and default vector-search fan-out.
 DEFAULT_TOKEN_BUDGET: int = 2000
@@ -79,6 +88,7 @@ class ContextBundle(BaseModel):
     contraindications: list[str]
     token_estimate: int
     token_budget: int
+    trends: TrendSummary | None = None
 
 
 def _subgraph_facts(client: Neo4jClient, member_id: str) -> list[str]:
@@ -151,6 +161,106 @@ def _subgraph_facts(client: Neo4jClient, member_id: str) -> list[str]:
     return facts
 
 
+def _member_header_facts(client: Neo4jClient, member_id: str) -> list[str]:
+    """Assemble the member's static (non-time-series) facts: name, injuries and goals.
+
+    Each query is rooted at ``(m:Member {id:$member_id})`` so no other member's entities appear.
+    """
+    facts: list[str] = []
+
+    name_rows = client.execute_read(
+        "MATCH (m:Member {id: $member_id}) RETURN m.name AS name",
+        member_id=member_id,
+    )
+    if name_rows and name_rows[0].get("name"):
+        facts.append(f"Member: {name_rows[0]['name']}.")
+
+    injury_rows = client.execute_read(
+        "MATCH (m:Member {id: $member_id})-[:HAS_INJURY]->(i:Injury) "
+        "RETURN i.name AS name ORDER BY i.name",
+        member_id=member_id,
+    )
+    for row in injury_rows:
+        facts.append(f"Active injury: {row['name']}.")
+
+    goal_rows = client.execute_read(
+        "MATCH (m:Member {id: $member_id})-[:HAS_GOAL]->(g:Goal) "
+        "RETURN g.description AS description ORDER BY g.id",
+        member_id=member_id,
+    )
+    for row in goal_rows:
+        facts.append(f"Goal: {row['description']}.")
+
+    return facts
+
+
+def _member_workout_rows(client: Neo4jClient, member_id: str) -> list[dict[str, Any]]:
+    """Return the member's full workout history (timestamp + exercises), newest first."""
+    return client.execute_read(
+        "MATCH (m:Member {id: $member_id})-[:PERFORMED]->(w:Workout) "
+        "OPTIONAL MATCH (w)-[:INCLUDES]->(e:Exercise) "
+        "WITH w, collect(e.name) AS exercises "
+        "RETURN w.timestamp AS timestamp, exercises ORDER BY w.timestamp DESC",
+        member_id=member_id,
+    )
+
+
+def _member_adherence_rows(client: Neo4jClient, member_id: str) -> list[dict[str, Any]]:
+    """Return the member's full adherence history, newest first."""
+    return client.execute_read(
+        "MATCH (m:Member {id: $member_id})-[:HAS_ADHERENCE]->(a:AdherenceRecord) "
+        "RETURN a.timestamp AS timestamp, a.planned AS planned, a.completed AS completed "
+        "ORDER BY a.timestamp DESC",
+        member_id=member_id,
+    )
+
+
+def _member_biometric_rows(client: Neo4jClient, member_id: str) -> list[dict[str, Any]]:
+    """Return the member's full biometric history, newest first."""
+    return client.execute_read(
+        "MATCH (m:Member {id: $member_id})-[:MEASURED]->(b:BiometricReading) "
+        "RETURN b.timestamp AS timestamp, b.type AS type, b.value AS value "
+        "ORDER BY b.timestamp DESC",
+        member_id=member_id,
+    )
+
+
+def _render_workout(row: Mapping[str, Any]) -> str:
+    exercises = ", ".join(row["exercises"]) if row["exercises"] else "no exercises recorded"
+    return f"Workout on {row['timestamp']}: {exercises}."
+
+
+def _render_adherence(row: Mapping[str, Any]) -> str:
+    return (
+        f"Adherence on {row['timestamp']}: completed {row['completed']} of "
+        f"{row['planned']} planned sessions."
+    )
+
+
+def _render_biometric(row: Mapping[str, Any]) -> str:
+    return f"Biometric on {row['timestamp']}: {row['type']} = {row['value']}."
+
+
+def _windowed_subgraph_facts(
+    client: Neo4jClient,
+    member_id: str,
+    window: TimeWindow,
+    workout_rows: list[dict[str, Any]],
+    adherence_rows: list[dict[str, Any]],
+    biometric_rows: list[dict[str, Any]],
+) -> list[str]:
+    """Assemble member facts with time-series activity scoped to ``window``.
+
+    Static facts (name, injuries, goals) are always included; workout, adherence and biometric
+    rows are filtered to the window via :func:`filter_window` before rendering.
+    """
+    facts = _member_header_facts(client, member_id)
+    facts.extend(_render_workout(row) for row in filter_window(workout_rows, window))
+    facts.extend(_render_adherence(row) for row in filter_window(adherence_rows, window))
+    facts.extend(_render_biometric(row) for row in filter_window(biometric_rows, window))
+    return facts
+
+
 def _contraindications(client: Neo4jClient, member_id: str) -> list[str]:
     """Return the sorted, de-duplicated union of exercises unsafe for the member's injuries."""
     injury_rows = client.execute_read(
@@ -189,6 +299,7 @@ def retrieve(
     *,
     token_budget: int = DEFAULT_TOKEN_BUDGET,
     k: int = DEFAULT_K,
+    window: TimeWindow | None = None,
 ) -> ContextBundle:
     """Retrieve a fused, token-bounded GraphRAG context bundle for a member and query.
 
@@ -196,6 +307,12 @@ def retrieve(
     subgraph traversal and the member's contraindication set. The narrative
     (``context_items``) prioritises subgraph facts, then vector-hit texts, greedily appended
     within ``token_budget``; contraindications are always returned in full.
+
+    When ``window`` is supplied, the member's time-series facts (workouts, adherence,
+    biometrics) are scoped to that trailing window and a :class:`TrendSummary` computed from the
+    in-window rows is attached as ``trends``; its ``summary_lines`` are prepended to
+    ``context_items`` so the trends survive the token budget. When ``window`` is ``None`` the
+    behaviour is unchanged and ``trends`` stays ``None``.
     """
     qvec = embeddings.embed_query(provider, query)
     raw_hits = embeddings.similarity_search(client, qvec, k=k)
@@ -209,10 +326,29 @@ def retrieve(
         for hit in raw_hits
     ]
 
-    subgraph_facts = _subgraph_facts(client, member_id)
     contraindications = _contraindications(client, member_id)
 
-    candidates: list[str] = list(subgraph_facts)
+    trends: TrendSummary | None = None
+    summary_lines: list[str] = []
+    if window is None:
+        subgraph_facts = _subgraph_facts(client, member_id)
+    else:
+        workout_rows = _member_workout_rows(client, member_id)
+        adherence_rows = _member_adherence_rows(client, member_id)
+        biometric_rows = _member_biometric_rows(client, member_id)
+        subgraph_facts = _windowed_subgraph_facts(
+            client, member_id, window, workout_rows, adherence_rows, biometric_rows
+        )
+        trends = compute_trends(
+            window=window,
+            adherence_rows=adherence_rows,
+            biometric_rows=biometric_rows,
+            workout_rows=workout_rows,
+        )
+        summary_lines = trends.summary_lines
+
+    candidates: list[str] = list(summary_lines)
+    candidates.extend(subgraph_facts)
     candidates.extend(hit.text for hit in vector_hits if hit.text)
     context_items, token_estimate = _budgeted_items(candidates, token_budget)
 
@@ -225,4 +361,5 @@ def retrieve(
         contraindications=contraindications,
         token_estimate=token_estimate,
         token_budget=token_budget,
+        trends=trends,
     )
