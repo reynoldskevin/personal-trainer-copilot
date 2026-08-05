@@ -1,0 +1,11 @@
+<!-- @dsCard group="Screens" -->
+<link rel="stylesheet" href="../tokens.css"><link rel="stylesheet" href="../_wireframe.css">
+<div class="wf-frame">
+<h1 class="wf-title">Members</h1>
+<p class="wf-sub">screen id: members-list · milestone 1 · ticket 010 · entry screen</p>
+<div data-region="app-header"><p class="wf-note">App title + coach identity.</p><div data-component="AppHeader"></div></div>
+<div class="wf-states"><span class="wf-state">loading</span><span class="wf-state">empty</span><span class="wf-state">error</span><span class="wf-state">populated</span></div>
+<div data-region="list-toolbar"><p class="wf-note">Client-side filter over the loaded member list (no backend search).</p><div data-component="SearchBar"></div></div>
+<div data-region="members-list"><p class="wf-note">One MemberListItem per member; row -&gt; member-overview.</p><div data-component="MemberListItem"></div><div data-component="MemberListItem"></div><div data-component="MemberListItem"></div></div>
+<div data-region="list-status"><p class="wf-note">empty / loading / error placeholder for the list.</p><div data-component="StatusView"></div></div>
+</div>

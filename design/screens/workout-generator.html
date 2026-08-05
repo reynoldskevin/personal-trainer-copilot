@@ -1,0 +1,12 @@
+<!-- @dsCard group="Screens" -->
+<link rel="stylesheet" href="../tokens.css"><link rel="stylesheet" href="../_wireframe.css">
+<div class="wf-frame">
+<h1 class="wf-title">Member · Workout</h1>
+<p class="wf-sub">screen id: workout-generator · milestone 1 · ticket 010</p>
+<div data-region="app-header"><p class="wf-note">App title + coach identity.</p><div data-component="AppHeader"></div></div>
+<div class="wf-states"><span class="wf-state">idle</span><span class="wf-state">generating</span><span class="wf-state">result</span><span class="wf-state">error</span></div>
+<div class="wf-shell">
+  <div class="wf-rail"><div data-region="member-context-rail"><p class="wf-note">Persistent member identity + injury badges across all hub tabs.</p><div data-component="MemberContextRail"></div><div data-component="InjuryBadge"></div></div></div>
+  <div class="wf-main"><div data-region="tab-nav"><div class="wf-tabs"><div class="wf-tab wf-tab">Overview</div><div class="wf-tab wf-tab is-active">Workout</div><div class="wf-tab wf-tab is-m2">Insights · M2</div><div class="wf-tab wf-tab is-m2">Trends · M2</div><div class="wf-tab wf-tab is-m2">Chat · M2</div></div></div><div data-region="workout-controls"><p class="wf-note">Goal hint input + Generate button.</p><div data-component="GenerateControl"></div></div><div data-region="workout-plan"><p class="wf-note">WorkoutPlanCard renders ExerciseRow x n, each with a StatusChip safety flag.</p><div data-component="WorkoutPlanCard"></div></div><div data-region="workout-supporting-context"><p class="wf-note">GraphRAG context behind the plan (/retrieve output).</p><div data-component="SupportingContextPanel"></div></div></div>
+</div>
+</div>

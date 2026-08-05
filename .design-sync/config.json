@@ -1,0 +1,6 @@
+{
+  "projectId": "247957b3-9ef6-4bcf-8383-e2fb93b7feca",
+  "projectName": "KG Coaching Platform Design System",
+  "shape": "wireframe-bundle",
+  "note": "Low-fi wireframe seed from wireframe-project (design/ bundle). NOT a compiled design system. Re-run /design-sync as the compiled importer once tdd-ticket-loop builds the real Next.js component library."
+}
