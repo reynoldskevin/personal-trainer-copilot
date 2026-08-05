@@ -11,6 +11,7 @@ const nextConfig = {
       { source: '/members/:id', destination: `${api}/members/:id` },
       { source: '/retrieve', destination: `${api}/retrieve` },
       { source: '/generate/:path*', destination: `${api}/generate/:path*` },
+      { source: '/chat', destination: `${api}/chat` },
     ];
   },
 };
