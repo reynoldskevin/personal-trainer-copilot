@@ -17,5 +17,21 @@ node_modules/
 # OS
 .DS_Store
 
-# Claude skills (local tooling, not product)
-.claude/skills/
+.env
+.claude
+.DS_Store
+
+ARCHITECTURE_DEFENSE.html
+DEMO_SCRIPT.md
+PROJECT_DECISION.md
+DEMO_PLAN.md
+BUILD_PLAN.md
+TICKETS.md
+TIME_ESTIMATE.md
+# build & deps
+node_modules/
+dist/
+*.tsbuildinfo
+coverage/
+
+next-env.d.ts
