@@ -17,7 +17,13 @@ export default function MemberListItem({ member, selected, onSelect }: MemberLis
       data-component="MemberListItem"
       aria-pressed={selected}
       onClick={() => onSelect(member)}
-      style={{ width: '100%', textAlign: 'left' }}
+      style={{
+        width: '100%',
+        textAlign: 'left',
+        color: 'inherit',
+        font: 'inherit',
+        appearance: 'none',
+      }}
     >
       <div className="kg-avatar">{initials(member.name)}</div>
       <div className="kg-grow">
