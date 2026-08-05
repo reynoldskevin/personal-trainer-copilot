@@ -19,7 +19,8 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.api import schemas
 from app.api.deps import get_llm_provider, get_neo4j_client
-from app.generation import workout
+from app.generation import chat, workout
+from app.generation.chat import ChatAnswer
 from app.generation.workout import WorkoutPlan
 from app.graph.client import Neo4jClient
 from app.llm.provider import LLMProvider
@@ -145,3 +146,13 @@ def generate_workout(
     if req.query is not None:
         return workout.generate_workout(client, provider, req.member_id, query=req.query)
     return workout.generate_workout(client, provider, req.member_id)
+
+
+@router.post("/chat", response_model=ChatAnswer)
+def chat_answer(
+    req: schemas.ChatRequest,
+    client: ClientDep,
+    provider: ProviderDep,
+) -> ChatAnswer:
+    """Answer the coach's question about the request's member, grounded in member context."""
+    return chat.answer_question(client, provider, req.member_id, req.message)
