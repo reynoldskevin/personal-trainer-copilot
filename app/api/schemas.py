@@ -46,6 +46,17 @@ class ChatRequest(BaseModel):
     message: str
 
 
+class GenerateInsightRequest(BaseModel):
+    """Request body for ``POST /generate/insight``.
+
+    ``member_id`` is required (an empty body yields a 422). ``window_weeks`` optionally overrides
+    the trailing window (in weeks) over which the member's trends are computed.
+    """
+
+    member_id: str
+    window_weeks: int | None = None
+
+
 class MemberSummary(BaseModel):
     """A compact member listing entry returned by ``GET /members``."""
 

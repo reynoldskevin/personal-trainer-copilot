@@ -19,13 +19,15 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.api import schemas
 from app.api.deps import get_llm_provider, get_neo4j_client
-from app.generation import chat, workout
+from app.generation import chat, insight, workout
 from app.generation.chat import ChatAnswer
+from app.generation.insight import InsightReport
 from app.generation.workout import WorkoutPlan
 from app.graph.client import Neo4jClient
 from app.llm.provider import LLMProvider
 from app.retrieval import service
 from app.retrieval.service import ContextBundle
+from app.retrieval.temporal import TimeWindow
 
 router = APIRouter()
 
@@ -156,3 +158,17 @@ def chat_answer(
 ) -> ChatAnswer:
     """Answer the coach's question about the request's member, grounded in member context."""
     return chat.answer_question(client, provider, req.member_id, req.message)
+
+
+@router.post("/generate/insight", response_model=InsightReport)
+def generate_insight(
+    req: schemas.GenerateInsightRequest,
+    client: ClientDep,
+    provider: ProviderDep,
+) -> InsightReport:
+    """Return an injury-safe, trend-grounded insight report for the request's member."""
+    if req.window_weeks is not None:
+        return insight.generate_insight(
+            client, provider, req.member_id, window=TimeWindow(weeks=req.window_weeks)
+        )
+    return insight.generate_insight(client, provider, req.member_id)
