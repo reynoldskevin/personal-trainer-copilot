@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type {
+  ChatAnswer,
+  ChatTurn,
+  InsightReport,
   Member,
   MemberDetail,
   RetrievalBundle,
@@ -19,6 +22,11 @@ import GenerateControl from './GenerateControl';
 import WorkoutPlanCard from './WorkoutPlanCard';
 import SupportingContextPanel from './SupportingContextPanel';
 import StatusView from './StatusView';
+import StatusChip from './StatusChip';
+import InsightReportCard from './InsightReportCard';
+import TrendChart from './TrendChart';
+import ChatThread from './ChatThread';
+import ChatComposer from './ChatComposer';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? '';
 
@@ -47,6 +55,15 @@ export default function Dashboard() {
   const [bundle, setBundle] = useState<RetrievalBundle | null>(null);
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+
+  const [insight, setInsight] = useState<InsightReport | null>(null);
+  const [insightBundle, setInsightBundle] = useState<RetrievalBundle | null>(null);
+  const [insightState, setInsightState] = useState<LoadState>('loading');
+
+  const [chatTurns, setChatTurns] = useState<ChatTurn[]>([]);
+  const [chatContext, setChatContext] = useState<string[] | null>(null);
+  const [chatSending, setChatSending] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -80,6 +97,12 @@ export default function Dashboard() {
     setPlan(null);
     setBundle(null);
     setGenerateError(null);
+    setInsight(null);
+    setInsightBundle(null);
+    setInsightState('loading');
+    setChatTurns([]);
+    setChatContext(null);
+    setChatError(null);
     try {
       const data = await getJson<MemberDetail>(`${API_BASE}/members/${member.id}`);
       setDetail(data);
@@ -112,6 +135,71 @@ export default function Dashboard() {
       setGenerateError('Failed to generate workout.');
     } finally {
       setGenerating(false);
+    }
+  }
+
+  // Fetch the insight report (and its supporting bundle) the first time the
+  // Insights or Trends tab is activated for the selected member — mirrors the
+  // workout tab. The `!insight` guard means it fetches once and never loops;
+  // Trends only reads `insight.trends.biometrics`, Insights also uses the bundle.
+  useEffect(() => {
+    if ((activeTab !== 'Insights' && activeTab !== 'Trends') || !selectedId || insight) return;
+    let active = true;
+    setInsightState('loading');
+    const memberId = selectedId;
+    Promise.all([
+      getJson<InsightReport>(`${API_BASE}/generate/insight`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ member_id: memberId }),
+      }),
+      getJson<RetrievalBundle>(`${API_BASE}/retrieve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ member_id: memberId, query: 'insight' }),
+      }),
+    ])
+      .then(([report, retrieved]) => {
+        if (!active) return;
+        setInsight(report);
+        setInsightBundle(retrieved);
+        setInsightState('ready');
+      })
+      .catch(() => {
+        if (!active) return;
+        setInsightState('error');
+      });
+    return () => {
+      active = false;
+    };
+  }, [activeTab, selectedId, insight]);
+
+  async function sendChat(message: string) {
+    if (!selectedId) return;
+    const memberId = selectedId;
+    const optimistic: ChatTurn = { role: 'coach', text: message };
+    setChatSending(true);
+    setChatError(null);
+    setChatTurns((turns) => [...turns, optimistic]);
+    try {
+      const answer = await getJson<ChatAnswer>(`${API_BASE}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ member_id: memberId, message }),
+      });
+      setChatTurns((turns) => [...turns, { role: 'assistant', text: answer.answer }]);
+      setChatContext(answer.context_used);
+    } catch {
+      // Roll back the dangling optimistic turn and surface an error affordance,
+      // mirroring generateWorkout — never swallow the failure silently.
+      setChatTurns((turns) => {
+        const idx = turns.lastIndexOf(optimistic);
+        if (idx === -1) return turns;
+        return [...turns.slice(0, idx), ...turns.slice(idx + 1)];
+      });
+      setChatError('Failed to send message. Please try again.');
+    } finally {
+      setChatSending(false);
     }
   }
 
@@ -177,6 +265,14 @@ export default function Dashboard() {
               generating={generating}
               generateError={generateError}
               onGenerate={generateWorkout}
+              insight={insight}
+              insightBundle={insightBundle}
+              insightState={insightState}
+              chatTurns={chatTurns}
+              chatContext={chatContext}
+              chatSending={chatSending}
+              chatError={chatError}
+              onSendChat={sendChat}
             />
           )}
         </section>
@@ -195,6 +291,14 @@ interface MemberHubProps {
   generating: boolean;
   generateError: string | null;
   onGenerate: () => void;
+  insight: InsightReport | null;
+  insightBundle: RetrievalBundle | null;
+  insightState: LoadState;
+  chatTurns: ChatTurn[];
+  chatContext: string[] | null;
+  chatSending: boolean;
+  chatError: string | null;
+  onSendChat: (message: string) => void;
 }
 
 function MemberHub({
@@ -207,6 +311,14 @@ function MemberHub({
   generating,
   generateError,
   onGenerate,
+  insight,
+  insightBundle,
+  insightState,
+  chatTurns,
+  chatContext,
+  chatSending,
+  chatError,
+  onSendChat,
 }: MemberHubProps) {
   return (
     <>
@@ -227,8 +339,18 @@ function MemberHub({
             onGenerate={onGenerate}
           />
         )}
-        {(activeTab === 'Insights' || activeTab === 'Trends' || activeTab === 'Chat') && (
-          <StatusView message={`${activeTab} — coming in M2`} variant="info" />
+        {activeTab === 'Insights' && (
+          <InsightsTab insight={insight} bundle={insightBundle} state={insightState} />
+        )}
+        {activeTab === 'Trends' && <TrendsTab detail={detail} insight={insight} />}
+        {activeTab === 'Chat' && (
+          <ChatTab
+            turns={chatTurns}
+            context={chatContext}
+            sending={chatSending}
+            error={chatError}
+            onSend={onSendChat}
+          />
         )}
       </div>
     </>
@@ -326,6 +448,179 @@ function OverviewTab({ detail }: { detail: MemberDetail }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+interface InsightsTabProps {
+  insight: InsightReport | null;
+  bundle: RetrievalBundle | null;
+  state: LoadState;
+}
+
+function InsightsTab({ insight, bundle, state }: InsightsTabProps) {
+  if (state === 'loading' || !insight) {
+    return <StatusView message="Generating insight report…" variant="loading" />;
+  }
+  if (state === 'error') {
+    return <StatusView message="Failed to generate insight." variant="error" />;
+  }
+
+  return (
+    <div className="kg-stack">
+      <div data-region="insight-summary">
+        <InsightReportCard report={insight} />
+      </div>
+
+      <div data-region="insight-flags" className="kg-stack" style={{ gap: 'var(--space-sm)' }}>
+        {insight.risk_flags.map((flag) => (
+          <div key={`${flag.kind}-${flag.detail}`}>
+            <StatusChip
+              label={`${flag.kind} · ${flag.severity}`}
+              variant={flag.severity === 'high' ? 'danger' : 'warn'}
+            />
+            <p className="kg-p" style={{ marginTop: 'var(--space-xs)' }}>
+              {flag.detail}
+            </p>
+          </div>
+        ))}
+        {insight.safety_flags.length > 0 && (
+          <div className="kg-row-f">
+            {insight.safety_flags.map((flag) => (
+              <StatusChip key={flag} label={flag} variant="info" />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {bundle && (
+        <div data-region="insight-supporting-context">
+          <SupportingContextPanel bundle={bundle} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TrendsTab({ detail, insight }: { detail: MemberDetail; insight: InsightReport | null }) {
+  const totals = detail.adherence.reduce(
+    (acc, a) => {
+      acc.planned += a.planned;
+      acc.completed += a.completed;
+      return acc;
+    },
+    { planned: 0, completed: 0 }
+  );
+  const adherencePct =
+    totals.planned > 0 ? Math.round((totals.completed / totals.planned) * 100) : 0;
+
+  // Adherence chart derives synchronously from the loaded member detail so it
+  // shows immediately, independent of the insight fetch.
+  const points = detail.adherence.map((a, i) => ({
+    key: a.timestamp || String(i),
+    label: new Date(a.timestamp).toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+    }),
+    value: a.planned > 0 ? Math.round((a.completed / a.planned) * 100) : 0,
+  }));
+
+  // Biometric trends arrive with the insight; degenerate cases (still loading,
+  // failed, or none present) simply render nothing extra — no crash.
+  const biometrics = insight?.trends?.biometrics ?? [];
+  const labelFor = (type: string) => type.replace(/_/g, ' ');
+
+  return (
+    <div className="kg-stack">
+      <div
+        data-region="trends-metrics"
+        className="kg-grid"
+        style={{ gridTemplateColumns: '1.55fr 1fr' }}
+      >
+        <MetricStat
+          label="Overall adherence"
+          value={String(adherencePct)}
+          unit="%"
+          pct={adherencePct}
+          sub={`${totals.completed}/${totals.planned}`}
+        />
+        <MetricStat
+          label="Sessions logged"
+          value={String(detail.recent_workouts.length)}
+          tone="safe"
+        />
+        {biometrics.map((b) => (
+          <MetricStat
+            key={b.type}
+            label={labelFor(b.type)}
+            value={String(b.last_value)}
+            sub={`${b.direction} · ${b.slope_per_week > 0 ? '+' : ''}${b.slope_per_week}/wk`}
+            tone={b.direction === 'rising' ? 'warn' : 'safe'}
+          />
+        ))}
+      </div>
+
+      <div data-region="trends-charts" className="kg-stack">
+        <div className="kg-card">
+          <h2 className="kg-h1">Adherence over time</h2>
+          <div style={{ marginTop: 'var(--space-md)' }}>
+            <TrendChart points={points} unit="%" />
+          </div>
+        </div>
+        {biometrics.map((b) => (
+          <div className="kg-card" key={b.type}>
+            <h2 className="kg-h1">{labelFor(b.type)}</h2>
+            <div style={{ marginTop: 'var(--space-md)' }}>
+              <TrendChart
+                points={[
+                  { key: 'start', label: 'start', value: b.first_value },
+                  { key: 'end', label: 'end', value: b.last_value },
+                ]}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface ChatTabProps {
+  turns: ChatTurn[];
+  context: string[] | null;
+  sending: boolean;
+  error: string | null;
+  onSend: (message: string) => void;
+}
+
+function ChatTab({ turns, context, sending, error, onSend }: ChatTabProps) {
+  const contextBundle: RetrievalBundle | null = context
+    ? {
+        member_id: '',
+        query: 'chat',
+        vector_hits: [],
+        subgraph_facts: [],
+        context_items: context,
+        contraindications: [],
+        token_estimate: 0,
+        token_budget: 0,
+      }
+    : null;
+
+  return (
+    <div className="kg-stack">
+      <div data-region="chat-thread">
+        <ChatThread turns={turns} />
+      </div>
+      <div data-region="chat-composer">
+        <ChatComposer onSend={onSend} disabled={sending} />
+      </div>
+      {error && <StatusView message={error} variant="error" />}
+      {contextBundle && (
+        <div data-region="chat-supporting-context">
+          <SupportingContextPanel bundle={contextBundle} />
+        </div>
+      )}
     </div>
   );
 }

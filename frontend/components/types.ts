@@ -49,3 +49,48 @@ export interface RetrievalBundle {
 }
 
 export type TabId = 'Overview' | 'Workout' | 'Insights' | 'Trends' | 'Chat';
+
+export interface RiskFlag {
+  kind: string;
+  severity: string;
+  detail: string;
+}
+
+export interface BiometricTrend {
+  type: string;
+  slope_per_week: number;
+  direction: string;
+  first_value: number;
+  last_value: number;
+}
+
+export interface TrendSummary {
+  window_weeks: number | null;
+  adherence_percentage: number | null;
+  adherence_sessions: string | null;
+  biometrics: BiometricTrend[];
+  workout_count: number;
+  summary_lines: string[];
+}
+
+export interface InsightReport {
+  member_id: string;
+  summary: string;
+  risk_flags: RiskFlag[];
+  personalization_notes: string[];
+  trends: TrendSummary | null;
+  excluded_contraindicated: string[];
+  safety_flags: string[];
+}
+
+export interface ChatAnswer {
+  member_id: string;
+  message: string;
+  answer: string;
+  context_used: string[];
+}
+
+export interface ChatTurn {
+  role: 'coach' | 'assistant';
+  text: string;
+}

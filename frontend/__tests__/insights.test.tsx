@@ -114,8 +114,9 @@ test('the Insights tab renders the InsightReport with risk and safety flags', as
   const flags = document.querySelector('[data-region="insight-flags"]') as HTMLElement;
   expect(flags).toBeInTheDocument();
   expect(flags.querySelector('[data-component="StatusChip"]')).toBeInTheDocument();
-  // The risk flag and the safety flag (contraindicated recommendation removed) are surfaced.
-  expect(screen.getByText(/adherence/i)).toBeInTheDocument();
+  // The risk flag (an adherence/risk signal) is surfaced within the flags region...
+  expect(within(flags).getAllByText(/adherence|risk/i).length).toBeGreaterThanOrEqual(1);
+  // ...and the safety flag (contraindicated recommendation removed) is surfaced.
   expect(screen.getByText(/overhead_press/)).toBeInTheDocument();
 
   // Supporting context is shown for the insight.
@@ -136,7 +137,7 @@ test('the Insights tab shows a loading affordance before the report arrives', as
   );
 });
 
-test('the Trends tab visualizes adherence with metrics and a chart', async () => {
+test('the Trends tab visualizes adherence AND biometric trends', async () => {
   installFetch();
   const user = await openHub();
 
@@ -145,5 +146,11 @@ test('the Trends tab visualizes adherence with metrics and a chart', async () =>
   expect(document.querySelector('[data-region="trends-metrics"]')).toBeInTheDocument();
   expect(document.querySelectorAll('[data-component="MetricStat"]').length).toBeGreaterThanOrEqual(1);
   expect(document.querySelector('[data-region="trends-charts"]')).toBeInTheDocument();
+  // Adherence-over-time chart is derived from the loaded member detail (synchronous)...
   expect(document.querySelector('[data-component="TrendChart"]')).toBeInTheDocument();
+  // ...and once the trend data loads, a biometric-progression chart is shown too (the fixture
+  // carries a resting_heart_rate trend), so both halves of the contract are visualized.
+  await waitFor(() =>
+    expect(document.querySelectorAll('[data-component="TrendChart"]').length).toBeGreaterThanOrEqual(2)
+  );
 });
