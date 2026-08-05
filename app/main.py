@@ -3,9 +3,12 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 
+from app.api.routes import router as api_router
 from app.graph.health import check_neo4j
 
 app = FastAPI(title="Knowledge Graph Coaching Platform")
+
+app.include_router(api_router)
 
 
 @app.get("/health")
