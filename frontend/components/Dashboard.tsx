@@ -115,13 +115,22 @@ export default function Dashboard() {
     }
   }
 
+  // Screen-based navigation: the members list and the member hub are distinct
+  // full screens (per the structure contract), never a persistent master-detail.
+  // Search lives only on the list screen; the hub's rail is the member context.
+  const onList = selectedId === null;
+
   return (
     <div className="kg-app">
       <div data-region="app-header">
         <AppHeader />
       </div>
-      <div className="kg-shell">
-        <section className="kg-card kg-rail" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)', flexBasis: 340 }}>
+
+      {onList ? (
+        <section className="kg-stack">
+          <div className="kg-between" style={{ padding: 'var(--space-md) var(--space-sm) 0' }}>
+            <h1 className="kg-display">Members</h1>
+          </div>
           <div data-region="list-toolbar">
             <SearchBar value={search} onChange={setSearch} />
           </div>
@@ -149,18 +158,18 @@ export default function Dashboard() {
             ))}
           </div>
         </section>
-
-        <section className="kg-main">
-          {!selectedId && <StatusView message="Select a member to view their hub." variant="empty" />}
-          {selectedId && detailState === 'loading' && (
+      ) : (
+        <section className="kg-shell">
+          {detailState === 'loading' && (
             <StatusView message="Loading member…" variant="loading" />
           )}
-          {selectedId && detailState === 'error' && (
+          {detailState === 'error' && (
             <StatusView message="Failed to load member details." variant="error" />
           )}
-          {selectedId && detailState === 'ready' && detail && (
+          {detailState === 'ready' && detail && (
             <MemberHub
               detail={detail}
+              onBack={() => setSelectedId(null)}
               activeTab={activeTab}
               onTabChange={setActiveTab}
               plan={plan}
@@ -171,13 +180,14 @@ export default function Dashboard() {
             />
           )}
         </section>
-      </div>
+      )}
     </div>
   );
 }
 
 interface MemberHubProps {
   detail: MemberDetail;
+  onBack: () => void;
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
   plan: WorkoutPlan | null;
@@ -189,6 +199,7 @@ interface MemberHubProps {
 
 function MemberHub({
   detail,
+  onBack,
   activeTab,
   onTabChange,
   plan,
@@ -198,9 +209,9 @@ function MemberHub({
   onGenerate,
 }: MemberHubProps) {
   return (
-    <div className="kg-shell" style={{ flex: 1 }}>
+    <>
       <div className="kg-rail" data-region="member-context-rail">
-        <MemberContextRail detail={detail} />
+        <MemberContextRail detail={detail} onBack={onBack} />
       </div>
       <div className="kg-main">
         <div data-region="tab-nav">
@@ -220,7 +231,7 @@ function MemberHub({
           <StatusView message={`${activeTab} — coming in M2`} variant="info" />
         )}
       </div>
-    </div>
+    </>
   );
 }
 

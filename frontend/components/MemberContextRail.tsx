@@ -2,7 +2,13 @@ import type { MemberDetail } from './types';
 import InjuryBadge from './InjuryBadge';
 import { initials } from './util';
 
-export default function MemberContextRail({ detail }: { detail: MemberDetail }) {
+export default function MemberContextRail({
+  detail,
+  onBack,
+}: {
+  detail: MemberDetail;
+  onBack?: () => void;
+}) {
   const totals = detail.adherence.reduce(
     (acc, a) => {
       acc.planned += a.planned;
@@ -17,6 +23,24 @@ export default function MemberContextRail({ detail }: { detail: MemberDetail }) 
 
   return (
     <div className="kg-card" data-component="MemberContextRail" style={{ height: '100%' }}>
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="kg-mono"
+          style={{
+            display: 'inline-block',
+            marginBottom: 'var(--space-md)',
+            background: 'none',
+            border: 0,
+            padding: 0,
+            color: 'var(--color-accent-2)',
+            cursor: 'pointer',
+          }}
+        >
+          ‹ All members
+        </button>
+      )}
       <div className="kg-avatar kg-avatar--lg">{initials(detail.name)}</div>
       <h2 className="kg-h1" style={{ margin: 'var(--space-md) 0 4px' }}>
         {detail.name}
