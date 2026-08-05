@@ -1,22 +1,38 @@
 import type { RetrievalBundle } from './types';
 
 export default function SupportingContextPanel({ bundle }: { bundle: RetrievalBundle }) {
+  const facts = bundle.subgraph_facts;
+  const context = bundle.context_items;
+  const sourceCount = facts.length + context.length;
+
   return (
-    <div className="panel supporting-context-panel" data-component="SupportingContextPanel">
-      <h3>Supporting context</h3>
-      {bundle.subgraph_facts.length > 0 && (
-        <>
-          <h4>Knowledge graph facts</h4>
-          <ul>
-            {bundle.subgraph_facts.map((fact) => (
-              <li key={fact}>{fact}</li>
-            ))}
-          </ul>
-        </>
-      )}
-      <p className="meta">
-        Token budget: {bundle.token_estimate}/{bundle.token_budget}
-      </p>
+    <div className="kg-panel" data-component="SupportingContextPanel">
+      <div className="kg-panel__head" style={{ marginBottom: 'var(--space-md)' }}>
+        <div className="kg-row-f">
+          <span className="kg-chip kg-chip--info">
+            <span className="kg-chip__dot" />
+            {sourceCount} sources
+          </span>
+          <span className="kg-h3">Supporting context</span>
+        </div>
+      </div>
+
+      {facts.map((fact) => (
+        <div className="kg-source" key={`graph-${fact}`}>
+          <span className="kg-source__tag">GRAPH</span>
+          <div>
+            <div className="kg-h3">{fact}</div>
+          </div>
+        </div>
+      ))}
+      {context.map((item) => (
+        <div className="kg-source" key={`context-${item}`}>
+          <span className="kg-source__tag">CONTEXT</span>
+          <div>
+            <div className="kg-h3">{item}</div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

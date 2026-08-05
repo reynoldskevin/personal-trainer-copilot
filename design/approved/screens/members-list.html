@@ -1,0 +1,54 @@
+<!-- @dsCard group="Screens" name="Members" subtitle="screen id: members-list" viewport="1440x1000" -->
+<link rel="stylesheet" href="../styles.css">
+<div class="kg-app">
+<div data-region="app-header"><div data-component="AppHeader" class="kg-between">
+  <div class="kg-row-f" style="gap:var(--space-md)">
+    <div class="kg-avatar" style="border-radius:var(--radius-md);background:var(--color-accent);color:var(--color-accent-fg)">KG</div>
+    <div><h2 class="kg-h2">Coaching Graph</h2><p class="kg-mono">members</p></div>
+  </div>
+  <div class="kg-row-f" style="gap:var(--space-sm)">
+    <button class="kg-icon-btn">?</button>
+    <div class="kg-row-f" style="gap:10px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-pill);padding:5px 14px 5px 5px">
+      <div class="kg-avatar kg-avatar--sm">DR</div>
+      <div><div class="kg-h3">Dana Reyes</div><div class="kg-mono" style="font-size:11px">Head coach</div></div>
+    </div>
+  </div>
+</div></div>
+<div class="kg-between" style="padding:var(--space-lg) var(--space-sm) 0">
+  <div><h1 class="kg-display">Members</h1><p class="kg-p" style="margin-top:6px">24 active · 3 need review this week</p></div>
+  <button class="kg-btn">Invite member</button>
+</div>
+<div data-region="list-toolbar"><div class="kg-between" style="gap:var(--space-md)">
+  <div class="kg-grow" data-component="SearchBar"><input class="kg-input" placeholder="Search members by name, goal or injury"></div>
+  <div class="kg-row-f"><span class="kg-chip kg-chip--accent kg-chip--sm">All</span><span class="kg-chip kg-chip--ghost kg-chip--sm">Needs review</span><span class="kg-chip kg-chip--ghost kg-chip--sm">Injured</span><span class="kg-chip kg-chip--ghost kg-chip--sm">Off-plan</span></div>
+</div></div>
+<div data-region="members-list"><div class="kg-list" data-component="MemberListItem">
+<a href="member-overview.html" class="kg-list-item" style="text-decoration:none;color:inherit">
+  <div class="kg-avatar">MA</div>
+  <div class="kg-grow"><div class="kg-h3">Marcus Adeyemi</div><p class="kg-mono">42 · strength + return to run</p></div>
+  <div style="width:150px"><div class="kg-between" style="margin-bottom:6px"><span class="kg-mono">adherence</span><span class="kg-h3">86%</span></div><div class="kg-bar"><div class="kg-bar__fill" style="width:86%"></div></div></div>
+  <span class="kg-chip kg-chip--warn"><span class="kg-chip__dot"></span>Rotator cuff</span><span class="kg-mono" style="font-size:14px">&rsaquo;</span></a>
+<a href="member-overview.html" class="kg-list-item" style="text-decoration:none;color:inherit">
+  <div class="kg-avatar">PS</div>
+  <div class="kg-grow"><div class="kg-h3">Priya Sundaram</div><p class="kg-mono">34 · marathon block wk 6</p></div>
+  <div style="width:150px"><div class="kg-between" style="margin-bottom:6px"><span class="kg-mono">adherence</span><span class="kg-h3">94%</span></div><div class="kg-bar"><div class="kg-bar__fill" style="width:94%"></div></div></div>
+  <span class="kg-chip kg-chip--safe kg-chip--sm">Cleared</span><span class="kg-mono" style="font-size:14px">&rsaquo;</span></a>
+<a href="member-overview.html" class="kg-list-item" style="text-decoration:none;color:inherit">
+  <div class="kg-avatar">JL</div>
+  <div class="kg-grow"><div class="kg-h3">Jonah Lindqvist</div><p class="kg-mono">51 · post-op knee rehab</p></div>
+  <div style="width:150px"><div class="kg-between" style="margin-bottom:6px"><span class="kg-mono">adherence</span><span class="kg-h3">62%</span></div><div class="kg-bar"><div class="kg-bar__fill" style="width:62%"></div></div></div>
+  <span class="kg-chip kg-chip--danger"><span class="kg-chip__dot"></span>L4 disc irritation</span><span class="kg-mono" style="font-size:14px">&rsaquo;</span></a>
+<a href="member-overview.html" class="kg-list-item" style="text-decoration:none;color:inherit">
+  <div class="kg-avatar">AO</div>
+  <div class="kg-grow"><div class="kg-h3">Amara Okonjo</div><p class="kg-mono">29 · hypertrophy</p></div>
+  <div style="width:150px"><div class="kg-between" style="margin-bottom:6px"><span class="kg-mono">adherence</span><span class="kg-h3">78%</span></div><div class="kg-bar"><div class="kg-bar__fill" style="width:78%"></div></div></div>
+  <span class="kg-chip kg-chip--info kg-chip--sm">Needs review</span><span class="kg-mono" style="font-size:14px">&rsaquo;</span></a>
+<a href="member-overview.html" class="kg-list-item" style="text-decoration:none;color:inherit">
+  <div class="kg-avatar">TB</div>
+  <div class="kg-grow"><div class="kg-h3">Tom Braithwaite</div><p class="kg-mono">45 · general fitness</p></div>
+  <div style="width:150px"><div class="kg-between" style="margin-bottom:6px"><span class="kg-mono">adherence</span><span class="kg-h3">41%</span></div><div class="kg-bar"><div class="kg-bar__fill" style="width:41%"></div></div></div>
+  <span class="kg-chip kg-chip--warn"><span class="kg-chip__dot"></span>Off-plan 2 wks</span><span class="kg-mono" style="font-size:14px">&rsaquo;</span></a>
+</div></div>
+<div data-region="list-status"><div class="kg-between" style="padding:0 var(--space-sm)"><p class="kg-mono">Showing 5 of 24 members</p><button class="kg-btn kg-btn--ghost kg-btn--sm">Load more</button></div>
+<div data-component="StatusView" class="kg-status" style="display:none">Empty / loading / error state renders here</div></div>
+</div>

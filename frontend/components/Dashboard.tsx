@@ -12,6 +12,7 @@ import AppHeader from './AppHeader';
 import SearchBar from './SearchBar';
 import MemberListItem from './MemberListItem';
 import MemberContextRail from './MemberContextRail';
+import InjuryBadge from './InjuryBadge';
 import TabNav from './TabNav';
 import MetricStat from './MetricStat';
 import GenerateControl from './GenerateControl';
@@ -115,13 +116,13 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="app">
+    <div className="kg-app">
       <div data-region="app-header">
         <AppHeader />
       </div>
-      <div className="layout">
-        <section className="panel">
-          <div data-region="list-toolbar" className="list-toolbar">
+      <div className="kg-shell">
+        <section className="kg-card kg-rail" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)', flexBasis: 340 }}>
+          <div data-region="list-toolbar">
             <SearchBar value={search} onChange={setSearch} />
           </div>
           {(listState === 'error' || (listState === 'ready' && filteredMembers.length === 0)) && (
@@ -134,7 +135,7 @@ export default function Dashboard() {
               )}
             </div>
           )}
-          <div data-region="members-list" className="members-list">
+          <div data-region="members-list" className="kg-list">
             {listState === 'loading' && (
               <StatusView message="Loading members…" variant="loading" />
             )}
@@ -149,7 +150,7 @@ export default function Dashboard() {
           </div>
         </section>
 
-        <section>
+        <section className="kg-main">
           {!selectedId && <StatusView message="Select a member to view their hub." variant="empty" />}
           {selectedId && detailState === 'loading' && (
             <StatusView message="Loading member…" variant="loading" />
@@ -197,83 +198,122 @@ function MemberHub({
   onGenerate,
 }: MemberHubProps) {
   return (
-    <div className="member-hub">
-      <div className="layout" style={{ padding: 0, gridTemplateColumns: '280px 1fr' }}>
-        <div data-region="member-context-rail">
-          <MemberContextRail detail={detail} />
+    <div className="kg-shell" style={{ flex: 1 }}>
+      <div className="kg-rail" data-region="member-context-rail">
+        <MemberContextRail detail={detail} />
+      </div>
+      <div className="kg-main">
+        <div data-region="tab-nav">
+          <TabNav active={activeTab} onChange={onTabChange} />
         </div>
-        <div>
-          <div data-region="tab-nav">
-            <TabNav active={activeTab} onChange={onTabChange} />
-          </div>
-          {activeTab === 'Overview' && <OverviewTab detail={detail} />}
-          {activeTab === 'Workout' && (
-            <WorkoutTab
-              plan={plan}
-              bundle={bundle}
-              generating={generating}
-              generateError={generateError}
-              onGenerate={onGenerate}
-            />
-          )}
-          {(activeTab === 'Insights' || activeTab === 'Trends' || activeTab === 'Chat') && (
-            <StatusView message={`${activeTab} — coming in M2`} variant="info" />
-          )}
-        </div>
+        {activeTab === 'Overview' && <OverviewTab detail={detail} />}
+        {activeTab === 'Workout' && (
+          <WorkoutTab
+            plan={plan}
+            bundle={bundle}
+            generating={generating}
+            generateError={generateError}
+            onGenerate={onGenerate}
+          />
+        )}
+        {(activeTab === 'Insights' || activeTab === 'Trends' || activeTab === 'Chat') && (
+          <StatusView message={`${activeTab} — coming in M2`} variant="info" />
+        )}
       </div>
     </div>
   );
 }
 
 function OverviewTab({ detail }: { detail: MemberDetail }) {
-  const latestAdherence = detail.adherence[detail.adherence.length - 1];
+  const totals = detail.adherence.reduce(
+    (acc, a) => {
+      acc.planned += a.planned;
+      acc.completed += a.completed;
+      return acc;
+    },
+    { planned: 0, completed: 0 }
+  );
   const adherencePct =
-    latestAdherence && latestAdherence.planned > 0
-      ? Math.round((latestAdherence.completed / latestAdherence.planned) * 100)
-      : 0;
+    totals.planned > 0 ? Math.round((totals.completed / totals.planned) * 100) : 0;
 
   return (
-    <div className="overview">
-      <div data-region="overview-metrics" className="metrics-grid">
-        <MetricStat label="Adherence" value={`${adherencePct}%`} />
-        <MetricStat label="Recent workouts" value={String(detail.recent_workouts.length)} />
+    <div className="kg-stack">
+      <div
+        data-region="overview-metrics"
+        className="kg-grid"
+        style={{ gridTemplateColumns: '1.55fr 1fr' }}
+      >
+        <MetricStat
+          label="4-week adherence"
+          value={String(adherencePct)}
+          unit="%"
+          pct={adherencePct}
+          sub={`${totals.completed}/${totals.planned}`}
+        />
+        <MetricStat
+          label="Sessions logged"
+          value={String(detail.recent_workouts.length)}
+          tone="safe"
+        />
       </div>
 
-      <div data-region="overview-injuries" className="overview-section">
-        <h3>Injuries</h3>
-        {detail.injuries.length === 0 ? (
-          <p className="meta">No injuries recorded.</p>
-        ) : (
-          <ul>
-            {detail.injuries.map((injury) => (
-              <li key={injury}>{injury}</li>
-            ))}
-          </ul>
-        )}
+      <div className="kg-cols" style={{ alignItems: 'stretch' }}>
+        <div data-region="overview-injuries" style={{ flex: '0 0 340px', order: 2 }}>
+          <div className="kg-card" style={{ height: '100%' }}>
+            <h2 className="kg-h1">Injuries</h2>
+            <div
+              className="kg-stack"
+              style={{ gap: 'var(--space-sm)', marginTop: 'var(--space-lg)' }}
+            >
+              {detail.injuries.length === 0 ? (
+                <span className="kg-chip kg-chip--safe kg-chip--sm">Cleared</span>
+              ) : (
+                detail.injuries.map((injury) => (
+                  <div className="kg-inset" key={injury}>
+                    <InjuryBadge injury={injury} />
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div data-region="overview-goals" className="kg-grow" style={{ order: 1 }}>
+          <div className="kg-card" style={{ height: '100%' }}>
+            <h2 className="kg-h1">Goals</h2>
+            <div
+              className="kg-stack"
+              style={{ gap: 'var(--space-lg)', marginTop: 'var(--space-lg)' }}
+            >
+              {detail.goals.map((goal) => (
+                <div key={goal}>
+                  <div className="kg-h3">{goal}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div data-region="overview-goals" className="overview-section">
-        <h3>Goals</h3>
-        <ul>
-          {detail.goals.map((goal) => (
-            <li key={goal}>{goal}</li>
-          ))}
-        </ul>
-      </div>
-
-      <div data-region="overview-recent-activity" className="overview-section">
-        <h3>Recent activity</h3>
-        {detail.recent_workouts.length === 0 ? (
-          <p className="meta">No recent workouts.</p>
-        ) : (
-          <ul>
-            {detail.recent_workouts.map((w) => (
-              <li key={w.timestamp}>
-                {new Date(w.timestamp).toLocaleDateString()} — {w.exercises.join(', ')}
-              </li>
-            ))}
-          </ul>
-        )}
+      <div data-region="overview-recent-activity">
+        <div className="kg-card">
+          <h2 className="kg-h1">Recent activity</h2>
+          <div className="kg-stack" style={{ gap: 0, marginTop: 'var(--space-md)' }}>
+            {detail.recent_workouts.length === 0 ? (
+              <p className="kg-p">No recent workouts.</p>
+            ) : (
+              detail.recent_workouts.map((w) => (
+                <div className="kg-source" key={w.timestamp}>
+                  <span className="kg-source__tag">SESSION</span>
+                  <div>
+                    <div className="kg-h3">{w.exercises.join(', ')}</div>
+                    <p className="kg-mono">{new Date(w.timestamp).toLocaleDateString()}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -289,7 +329,7 @@ interface WorkoutTabProps {
 
 function WorkoutTab({ plan, bundle, generating, generateError, onGenerate }: WorkoutTabProps) {
   return (
-    <div className="workout">
+    <div className="kg-stack">
       <div data-region="workout-controls">
         <GenerateControl onGenerate={onGenerate} loading={generating} />
       </div>

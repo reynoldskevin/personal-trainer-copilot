@@ -1,0 +1,66 @@
+<!-- @dsCard group="Screens" name="Member · Overview" subtitle="screen id: member-overview" viewport="1440x1080" -->
+<link rel="stylesheet" href="../styles.css">
+<div class="kg-app">
+<div data-region="app-header"><div data-component="AppHeader" class="kg-between">
+  <div class="kg-row-f" style="gap:var(--space-md)">
+    <div class="kg-avatar" style="border-radius:var(--radius-md);background:var(--color-accent);color:var(--color-accent-fg)">KG</div>
+    <div><h2 class="kg-h2">Coaching Graph</h2><p class="kg-mono">members / marcus adeyemi / overview</p></div>
+  </div>
+  <div class="kg-row-f" style="gap:var(--space-sm)">
+    <button class="kg-icon-btn">?</button>
+    <div class="kg-row-f" style="gap:10px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-pill);padding:5px 14px 5px 5px">
+      <div class="kg-avatar kg-avatar--sm">DR</div>
+      <div><div class="kg-h3">Dana Reyes</div><div class="kg-mono" style="font-size:11px">Head coach</div></div>
+    </div>
+  </div>
+</div></div>
+<div class="kg-shell">
+<div class="kg-rail"><div data-region="member-context-rail"><div data-component="MemberContextRail" class="kg-card" style="height:100%">
+  <a href="members-list.html" class="kg-mono" style="display:inline-block;margin-bottom:var(--space-md)">&lsaquo; All members</a>
+  <div class="kg-avatar kg-avatar--lg">MA</div>
+  <h2 class="kg-h1" style="margin:var(--space-md) 0 4px">Marcus Adeyemi</h2>
+  <p class="kg-mono">MBR-0413 · 42 · with Dana 14 mo</p>
+  <div class="kg-stack" style="gap:var(--space-sm);margin:var(--space-lg) 0">
+    <div class="kg-between"><span class="kg-mono">Goal</span><span class="kg-h3">Return to run</span></div>
+    <div class="kg-between"><span class="kg-mono">Sessions / wk</span><span class="kg-h3">4</span></div>
+    <div class="kg-between"><span class="kg-mono">Adherence</span><span class="kg-h3" style="color:var(--color-safe)">86%</span></div>
+    <div class="kg-between"><span class="kg-mono">Last session</span><span class="kg-h3">2 days ago</span></div>
+  </div>
+  <p class="kg-eyebrow" style="margin-bottom:var(--space-sm)">Active injuries</p>
+  <div class="kg-row-f" data-component="InjuryBadge"><span class="kg-chip kg-chip--warn"><span class="kg-chip__dot"></span>Rotator cuff strain</span><span class="kg-chip kg-chip--danger"><span class="kg-chip__dot"></span>L4 disc irritation</span></div>
+  <div class="kg-inset" style="margin-top:var(--space-lg)"><p class="kg-eyebrow">Graph coverage</p><p class="kg-p" style="margin-top:6px">128 nodes · 412 edges · synced 2h ago</p></div>
+</div></div></div>
+<div class="kg-main"><div data-region="tab-nav"><div data-component="TabNav" class="kg-tabs" style="width:max-content"><a class="kg-tab is-active" href="member-overview.html" style="text-decoration:none;color:inherit">Overview</a><a class="kg-tab" href="workout-generator.html" style="text-decoration:none;color:inherit">Workout</a><a class="kg-tab" href="insights.html" style="text-decoration:none;color:inherit">Insights</a><a class="kg-tab" href="trends.html" style="text-decoration:none;color:inherit">Trends</a><a class="kg-tab" href="chat.html" style="text-decoration:none;color:inherit">Chat</a></div></div><div data-region="overview-metrics"><div class="kg-grid" style="grid-template-columns:1.55fr 1fr 1fr" data-component="MetricStat">
+<div class="kg-stat kg-stat--accent kg-gauge">
+<div class="kg-ring kg-ring--lg" style="--pct:86"><div class="kg-ring__hole"><div><p class="kg-value kg-value--sm" style="margin:0">86<span class="kg-unit">%</span></p><p class="kg-eyebrow" style="margin-top:4px">22/24</p></div></div></div>
+<div><p class="kg-stat__label" style="max-width:none">4-week adherence</p><p style="margin:var(--space-sm) 0 0"><span class="kg-delta kg-delta--up">&#9650; 6%</span></p></div></div><div class="kg-stat kg-stat--info">
+<div class="kg-stat__head"><p class="kg-stat__label">Resting HR</p><span class="kg-stat__badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 20s-7-4.5-7-9.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 7 3.5C19 15.5 12 20 12 20z"></path></svg></span></div>
+<div class="kg-stat__foot"><p class="kg-value" style="margin:0">61<span class="kg-unit">bpm</span></p><span class="kg-delta kg-delta--down">&#9660; 3 bpm</span></div></div><div class="kg-stat kg-stat--safe">
+<div class="kg-stat__head"><p class="kg-stat__label">Sessions logged</p><span class="kg-stat__badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="3"></rect><path d="M8 3v4M16 3v4M3.5 10h17"></path></svg></span></div>
+<div class="kg-stat__foot"><p class="kg-value" style="margin:0">22<span class="kg-unit">of 24</span></p><span class="kg-delta kg-delta--flat">&ndash; 0</span></div></div>
+</div></div>
+<div class="kg-cols" style="align-items:stretch">
+<div data-region="overview-injuries" style="flex:0 0 340px;order:2"><div class="kg-card" style="height:100%"><h2 class="kg-h1">Injuries</h2>
+<div class="kg-stack" style="gap:var(--space-sm);margin-top:var(--space-lg)" data-component="InjuryBadge">
+<div class="kg-inset"><span class="kg-chip kg-chip--warn"><span class="kg-chip__dot"></span>Rotator cuff strain</span><p class="kg-mono" style="margin-top:10px">SCTID 202852009 · onset Mar 2026 · resolving</p></div>
+<div class="kg-inset"><span class="kg-chip kg-chip--danger"><span class="kg-chip__dot"></span>L4 disc irritation</span><p class="kg-mono" style="margin-top:10px">SCTID 202742005 · onset Jan 2026 · active</p></div>
+<div class="kg-inset"><span class="kg-chip kg-chip--resolved">Ankle sprain</span><p class="kg-mono" style="margin-top:10px">resolved Nov 2025</p></div>
+</div></div></div>
+<div data-region="overview-goals" class="kg-grow" style="order:1"><div class="kg-card" style="height:100%"><h2 class="kg-h1">Goals</h2>
+<div class="kg-stack" style="gap:var(--space-lg);margin-top:var(--space-lg)">
+<div><div class="kg-between" style="margin-bottom:8px"><span class="kg-h3">Run 5k pain-free</span><span class="kg-mono">72%</span></div><div class="kg-bar"><div class="kg-bar__fill" style="width:72%"></div></div></div>
+<div><div class="kg-between" style="margin-bottom:8px"><span class="kg-h3">Deadlift 140kg</span><span class="kg-mono">55%</span></div><div class="kg-bar"><div class="kg-bar__fill kg-bar__fill--2" style="width:55%"></div></div></div>
+<div><div class="kg-between" style="margin-bottom:8px"><span class="kg-h3">Overhead press bodyweight-safe</span><span class="kg-mono">30%</span></div><div class="kg-bar"><div class="kg-bar__fill" style="width:30%"></div></div></div>
+</div>
+<button class="kg-btn kg-btn--block" style="margin-top:var(--space-lg)">Generate next block</button>
+</div></div>
+</div>
+<div data-region="overview-recent-activity"><div class="kg-card"><div class="kg-between"><h2 class="kg-h1">Recent activity</h2><a class="kg-mono" href="trends.html">view trends</a></div>
+<div class="kg-stack" style="gap:0;margin-top:var(--space-md)">
+<div class="kg-source"><span class="kg-source__tag">SESSION</span><div><div class="kg-h3">Lower-body strength · 52 min · RPE 7</div><p class="kg-mono">2 days ago · all sets completed</p></div></div>
+<div class="kg-source"><span class="kg-source__tag">CHAT</span><div><div class="kg-h3">Coach asked about overhead readiness</div><p class="kg-mono">3 days ago · 3 graph sources</p></div></div>
+<div class="kg-source"><span class="kg-source__tag">PLAN</span><div><div class="kg-h3">Shoulder-safe upper body assigned</div><p class="kg-mono">5 days ago · generated plan</p></div></div>
+<div class="kg-source"><span class="kg-source__tag">NOTE</span><div><div class="kg-h3">Pain-free to 55&deg; under load</div><p class="kg-mono">1 wk ago · Dana Reyes</p></div></div>
+</div></div></div></div>
+</div>
+</div>
