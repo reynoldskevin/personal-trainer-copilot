@@ -1,13 +1,13 @@
 ---
 id: 007
 title: Retrieval Service — hybrid GraphRAG
-status: tests-authored
+status: ready-for-merge
 depends_on: [004, 006]
 branch: ticket/007-hybrid-retrieval
 base_branch: ticket/006-embeddings-vector-index
 test_command: ".venv/bin/python -m pytest tests/test_retrieval.py -q"
 full_suite_command: ".venv/bin/ruff check . && .venv/bin/mypy app && .venv/bin/python -m pytest -q"
-attempts: 0
+attempts: 1
 ---
 
 ## Description
