@@ -1,13 +1,13 @@
 ---
 id: 009
 title: FastAPI endpoints — members, retrieve, generate/workout
-status: tests-authored
+status: ready-for-merge
 depends_on: [008]
 branch: ticket/009-fastapi-endpoints
 base_branch: ticket/008-generation-guardrail
 test_command: ".venv/bin/python -m pytest tests/test_api_core.py -q"
 full_suite_command: ".venv/bin/ruff check . && .venv/bin/mypy app && .venv/bin/python -m pytest -q"
-attempts: 0
+attempts: 1
 ---
 
 ## Description
