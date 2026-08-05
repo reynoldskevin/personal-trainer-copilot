@@ -1,13 +1,13 @@
 ---
 id: 006
 title: Embeddings + Neo4j native vector index
-status: tests-authored
+status: ready-for-merge
 depends_on: [003, 005]
 branch: ticket/006-embeddings-vector-index
 base_branch: main
 test_command: ".venv/bin/python -m pytest tests/test_vector_index.py -q"
 full_suite_command: ".venv/bin/ruff check . && .venv/bin/mypy app && .venv/bin/python -m pytest -q"
-attempts: 0
+attempts: 1
 ---
 
 ## Description
