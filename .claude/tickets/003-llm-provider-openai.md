@@ -1,7 +1,7 @@
 ---
 id: 003
 title: LLMProvider interface + OpenAI implementation
-status: tests-authored
+status: ready-for-merge
 depends_on: [001]
 branch: ticket/003-llm-provider-openai
 base_branch: ticket/001-scaffold-docker-compose
