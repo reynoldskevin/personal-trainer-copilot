@@ -13,7 +13,7 @@ query data, never string-interpolated).
 """
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -127,7 +127,7 @@ def retrieve(
     provider: ProviderDep,
 ) -> ContextBundle:
     """Return a fused GraphRAG context bundle for the request's member and query."""
-    kwargs: dict[str, int] = {}
+    kwargs: dict[str, Any] = {}
     if req.token_budget is not None:
         kwargs["token_budget"] = req.token_budget
     if req.k is not None:
