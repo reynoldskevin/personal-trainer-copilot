@@ -1,7 +1,7 @@
 ---
 id: 004
 title: Ontology + SNOMED subset + exercise/contraindication seed
-status: tests-authored
+status: ready-for-merge
 depends_on: [002]
 branch: ticket/004-ontology-snomed-seed
 base_branch: ticket/002-graph-schema-connection
