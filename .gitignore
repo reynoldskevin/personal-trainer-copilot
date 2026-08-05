@@ -16,3 +16,6 @@ node_modules/
 !.env.example
 # OS
 .DS_Store
+
+# Claude skills (local tooling, not product)
+.claude/skills/
