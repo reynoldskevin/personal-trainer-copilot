@@ -37,6 +37,8 @@ ProviderDep = Annotated[LLMProvider, Depends(get_llm_provider)]
 
 # How many recent time-series rows to surface per member relationship in the detail view.
 _RECENT_LIMIT: int = 5
+# How many biometric readings to surface for the trend charts (per member, most-recent window).
+_TREND_LIMIT: int = 60
 
 
 @router.get("/members", response_model=list[schemas.MemberSummary])
@@ -102,6 +104,16 @@ def get_member(
         member_id=member_id,
         limit=_RECENT_LIMIT,
     )
+    # Biometric readings power the Trends tab's per-metric line charts, so return the recent
+    # series in chronological (ascending) order — the most recent _TREND_LIMIT rows, oldest first.
+    biometric_rows = client.execute_read(
+        "MATCH (m:Member {id: $member_id})-[:MEASURED]->(b:BiometricReading) "
+        "WITH b ORDER BY b.timestamp DESC LIMIT $limit "
+        "RETURN b.timestamp AS timestamp, b.type AS type, b.value AS value "
+        "ORDER BY b.timestamp ASC",
+        member_id=member_id,
+        limit=_TREND_LIMIT,
+    )
 
     return schemas.MemberDetail(
         id=member_id,
@@ -119,6 +131,14 @@ def get_member(
                 completed=row["completed"],
             )
             for row in adherence_rows
+        ],
+        biometrics=[
+            schemas.BiometricPoint(
+                timestamp=row["timestamp"],
+                type=row["type"],
+                value=row["value"],
+            )
+            for row in biometric_rows
         ],
     )
 

@@ -81,6 +81,14 @@ class AdherenceSummary(BaseModel):
     completed: int
 
 
+class BiometricPoint(BaseModel):
+    """A single biometric reading: a typed measurement at a timestamp (for trend charts)."""
+
+    timestamp: str
+    type: str
+    value: float
+
+
 class MemberDetail(BaseModel):
     """Full member detail returned by ``GET /members/{member_id}``.
 
@@ -94,3 +102,4 @@ class MemberDetail(BaseModel):
     goals: list[str]
     recent_workouts: list[WorkoutSummary]
     adherence: list[AdherenceSummary]
+    biometrics: list[BiometricPoint]

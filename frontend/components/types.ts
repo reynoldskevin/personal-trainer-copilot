@@ -16,9 +16,16 @@ export interface AdherenceEntry {
   completed: number;
 }
 
+export interface BiometricPoint {
+  timestamp: string;
+  type: string;
+  value: number;
+}
+
 export interface MemberDetail extends Member {
   recent_workouts: RecentWorkout[];
   adherence: AdherenceEntry[];
+  biometrics: BiometricPoint[];
 }
 
 export interface PlanExercise {
