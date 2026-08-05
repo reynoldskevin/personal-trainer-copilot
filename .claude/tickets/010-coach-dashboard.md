@@ -1,13 +1,13 @@
 ---
 id: 010
 title: Minimal coach dashboard (Next.js)
-status: tests-authored
+status: ready-for-merge
 depends_on: [009]
 branch: ticket/010-coach-dashboard
 base_branch: ticket/009-fastapi-endpoints
 test_command: "npm --prefix frontend test"
 full_suite_command: ".venv/bin/ruff check . && .venv/bin/mypy app && .venv/bin/python -m pytest -q && npm --prefix frontend test"
-attempts: 0
+attempts: 1
 ---
 
 ## Description
