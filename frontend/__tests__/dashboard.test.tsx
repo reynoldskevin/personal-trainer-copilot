@@ -57,6 +57,30 @@ const AVA_BUNDLE = {
   token_budget: 2000,
 };
 
+const AVA_INSIGHT = {
+  member_id: 'member_ava',
+  summary: 'Ava is progressing on her shoulder rehab with steady adherence.',
+  risk_flags: [{ kind: 'adherence', severity: 'medium', detail: 'Windowed adherence dipped to 60%.' }],
+  personalization_notes: ['Keep pressing volume light this block.'],
+  trends: {
+    window_weeks: 12,
+    adherence_percentage: 75,
+    adherence_sessions: '12 of 16 planned sessions',
+    biometrics: [],
+    workout_count: 2,
+    summary_lines: ['Adherence 75% over the last 12 weeks.'],
+  },
+  excluded_contraindicated: ['overhead_press'],
+  safety_flags: ["Excluded contraindicated recommendation 'overhead_press' — unsafe for this member."],
+};
+
+const AVA_CHAT = {
+  member_id: 'member_ava',
+  message: 'How is she doing?',
+  answer: 'Ava is rehabbing her shoulder and her adherence is steady.',
+  context_used: ['Active injury: Rotator cuff injury.'],
+};
+
 function jsonResponse(body: unknown) {
   return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) } as Response);
 }
@@ -68,8 +92,10 @@ function installFetch(overrides: Partial<Record<string, () => Promise<Response>>
     const method = (init?.method || 'GET').toUpperCase();
     if (url.endsWith('/members') && method === 'GET') return (overrides.members ?? (() => jsonResponse(MEMBERS)))();
     if (/\/members\/[^/]+$/.test(url) && method === 'GET') return (overrides.detail ?? (() => jsonResponse(AVA_DETAIL)))();
+    if (url.endsWith('/generate/insight')) return (overrides.insight ?? (() => jsonResponse(AVA_INSIGHT)))();
     if (url.endsWith('/generate/workout')) return (overrides.generate ?? (() => jsonResponse(AVA_PLAN)))();
     if (url.endsWith('/retrieve')) return (overrides.retrieve ?? (() => jsonResponse(AVA_BUNDLE)))();
+    if (url.endsWith('/chat')) return (overrides.chat ?? (() => jsonResponse(AVA_CHAT)))();
     return Promise.reject(new Error(`unexpected fetch: ${method} ${url}`));
   });
   (global as unknown as { fetch: typeof fn }).fetch = fn;
@@ -141,13 +167,23 @@ test('selecting a member opens the overview hub with rail, injury, metrics, goal
   }
 });
 
-test('M2 tabs render a "coming in M2" StatusView placeholder', async () => {
+test('the Insights/Trends/Chat tabs are now active (no "coming in M2" placeholder)', async () => {
   installFetch();
   const user = await selectAva();
 
   await user.click(screen.getByRole('tab', { name: /Insights/ }));
-  expect(document.querySelector('[data-component="StatusView"]')).toBeInTheDocument();
-  expect(screen.getByText(/M2/i)).toBeInTheDocument();
+  await waitFor(() =>
+    expect(document.querySelector('[data-region="insight-summary"]')).toBeInTheDocument()
+  );
+  expect(document.querySelector('[data-component="InsightReportCard"]')).toBeInTheDocument();
+
+  await user.click(screen.getByRole('tab', { name: /Trends/ }));
+  expect(document.querySelector('[data-region="trends-metrics"]')).toBeInTheDocument();
+
+  await user.click(screen.getByRole('tab', { name: /Chat/ }));
+  expect(document.querySelector('[data-region="chat-composer"]')).toBeInTheDocument();
+
+  expect(screen.queryByText(/coming in M2/i)).not.toBeInTheDocument();
 });
 
 test('the Workout tab generates a plan and renders it with safety flags', async () => {
