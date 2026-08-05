@@ -1,7 +1,7 @@
 ---
 id: 001
 title: Repo scaffold + Docker Compose
-status: tests-authored
+status: ready-for-merge
 depends_on: []
 branch: ticket/001-scaffold-docker-compose
 base_branch: main

@@ -1,0 +1,57 @@
+[project]
+name = "kg-coaching-platform"
+version = "0.1.0"
+description = "Knowledge Graph Coaching Platform — modular-monolith FastAPI + Neo4j + OpenAI backend."
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic>=2",
+    "pydantic-settings",
+    "httpx",
+    "neo4j>=6",
+    "openai",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-mock",
+    "ruff",
+    "mypy",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = [
+    "app",
+    "app.api",
+    "app.generation",
+    "app.graph",
+    "app.ingestion",
+    "app.llm",
+    "app.observability",
+    "app.retrieval",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.14"
+packages = ["app"]
+strict = true
+ignore_missing_imports = true
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_typed = true
+warn_required_dynamic_aliases = true
