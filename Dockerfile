@@ -2,12 +2,11 @@ FROM python:3.14-slim
 
 WORKDIR /app
 
-# Install dependencies first for better layer caching.
+# The project is an installable package (pyproject declares `app`), so the source must be
+# present before `pip install .` can build the wheel.
 COPY pyproject.toml ./
-RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir .
-
-# Copy application code.
 COPY app ./app
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir .
 
 EXPOSE 8000
 

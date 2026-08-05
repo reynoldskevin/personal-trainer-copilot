@@ -165,20 +165,44 @@ def _prompt_node(state: _WorkoutState) -> _WorkoutState:
         {"role": "system", "content": system},
         {"role": "user", "content": user},
     ]
-    completion = state["provider"].chat(messages)
+    # Ask providers that support it (e.g. OpenAI) for a strict JSON object; providers that
+    # ignore unknown kwargs (or the test fake) are unaffected. The parser still tolerates
+    # fenced/prose output as a fallback.
+    completion = state["provider"].chat(messages, response_format={"type": "json_object"})
     return {"messages": messages, "completion": completion}
+
+
+def _extract_json_object(completion: str) -> str:
+    """Return the JSON object embedded in a model completion.
+
+    Real chat models often wrap JSON in a ```json fenced block or surround it with prose. This
+    strips a leading/trailing code fence and, failing that, falls back to the substring between
+    the first ``{`` and the last ``}`` so a bare ``json.loads`` of the result succeeds.
+    """
+    text = completion.strip()
+    if text.startswith("```"):
+        # Drop the opening fence line (``` or ```json) and any trailing fence.
+        text = text.split("\n", 1)[-1] if "\n" in text else text
+        if text.endswith("```"):
+            text = text[: -len("```")]
+        text = text.strip()
+    if not text.startswith("{"):
+        start, end = text.find("{"), text.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            text = text[start : end + 1]
+    return text
 
 
 def _parse_exercises(completion: str) -> tuple[str, list[PlannedExercise]]:
     """Parse a model completion into a summary and a list of planned exercises.
 
-    Defensive by design: a live model may return prose, truncated JSON or items missing an
-    ``exercise_id``. Any parse failure degrades to an empty exercise list (the safety invariant
-    is enforced downstream regardless), and malformed items are skipped rather than raising.
-    Tolerates a missing ``notes`` field and a missing/blank ``summary``.
+    Defensive by design: a live model may return prose, fenced JSON, truncated JSON or items
+    missing an ``exercise_id``. Any parse failure degrades to an empty exercise list (the safety
+    invariant is enforced downstream regardless), and malformed items are skipped rather than
+    raising. Tolerates a missing ``notes`` field and a missing/blank ``summary``.
     """
     try:
-        data = json.loads(completion)
+        data = json.loads(_extract_json_object(completion))
     except (ValueError, TypeError):
         return "Personalized workout plan.", []
     if not isinstance(data, dict):
