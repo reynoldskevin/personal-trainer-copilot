@@ -1,7 +1,7 @@
 ---
 id: 002
 title: Graph schema + Neo4j connection layer
-status: tests-authored
+status: ready-for-merge
 depends_on: [001]
 branch: ticket/002-graph-schema-connection
 base_branch: ticket/001-scaffold-docker-compose
