@@ -1,0 +1,56 @@
+<!-- @dsCard group="Screens" name="Member · Workout" subtitle="screen id: workout-generator" viewport="1440x1180" -->
+<link rel="stylesheet" href="../styles.css">
+<div class="kg-app">
+<div data-region="app-header"><div data-component="AppHeader" class="kg-between">
+  <div class="kg-row-f" style="gap:var(--space-md)">
+    <div class="kg-avatar" style="border-radius:var(--radius-md);background:var(--color-accent);color:var(--color-accent-fg)">KG</div>
+    <div><h2 class="kg-h2">Coaching Graph</h2><p class="kg-mono">members / marcus adeyemi / workout</p></div>
+  </div>
+  <div class="kg-row-f" style="gap:var(--space-sm)">
+    <button class="kg-icon-btn">?</button>
+    <div class="kg-row-f" style="gap:10px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-pill);padding:5px 14px 5px 5px">
+      <div class="kg-avatar kg-avatar--sm">DR</div>
+      <div><div class="kg-h3">Dana Reyes</div><div class="kg-mono" style="font-size:11px">Head coach</div></div>
+    </div>
+  </div>
+</div></div>
+<div class="kg-shell">
+<div class="kg-rail"><div data-region="member-context-rail"><div data-component="MemberContextRail" class="kg-card" style="height:100%">
+  <a href="members-list.html" class="kg-mono" style="display:inline-block;margin-bottom:var(--space-md)">&lsaquo; All members</a>
+  <div class="kg-avatar kg-avatar--lg">MA</div>
+  <h2 class="kg-h1" style="margin:var(--space-md) 0 4px">Marcus Adeyemi</h2>
+  <p class="kg-mono">MBR-0413 · 42 · with Dana 14 mo</p>
+  <div class="kg-stack" style="gap:var(--space-sm);margin:var(--space-lg) 0">
+    <div class="kg-between"><span class="kg-mono">Goal</span><span class="kg-h3">Return to run</span></div>
+    <div class="kg-between"><span class="kg-mono">Sessions / wk</span><span class="kg-h3">4</span></div>
+    <div class="kg-between"><span class="kg-mono">Adherence</span><span class="kg-h3" style="color:var(--color-safe)">86%</span></div>
+    <div class="kg-between"><span class="kg-mono">Last session</span><span class="kg-h3">2 days ago</span></div>
+  </div>
+  <p class="kg-eyebrow" style="margin-bottom:var(--space-sm)">Active injuries</p>
+  <div class="kg-row-f" data-component="InjuryBadge"><span class="kg-chip kg-chip--warn"><span class="kg-chip__dot"></span>Rotator cuff strain</span><span class="kg-chip kg-chip--danger"><span class="kg-chip__dot"></span>L4 disc irritation</span></div>
+  <div class="kg-inset" style="margin-top:var(--space-lg)"><p class="kg-eyebrow">Graph coverage</p><p class="kg-p" style="margin-top:6px">128 nodes · 412 edges · synced 2h ago</p></div>
+</div></div></div>
+<div class="kg-main"><div data-region="tab-nav"><div data-component="TabNav" class="kg-tabs" style="width:max-content"><a class="kg-tab" href="member-overview.html" style="text-decoration:none;color:inherit">Overview</a><a class="kg-tab is-active" href="workout-generator.html" style="text-decoration:none;color:inherit">Workout</a><a class="kg-tab" href="insights.html" style="text-decoration:none;color:inherit">Insights</a><a class="kg-tab" href="trends.html" style="text-decoration:none;color:inherit">Trends</a><a class="kg-tab" href="chat.html" style="text-decoration:none;color:inherit">Chat</a></div></div><div data-region="workout-controls"><div data-component="GenerateControl" class="kg-card kg-card--flat">
+<div class="kg-field"><input class="kg-input" value="shoulder-safe upper body" ><button class="kg-btn">Generate</button></div>
+<div class="kg-row-f" style="margin-top:var(--space-md)"><span class="kg-mono">quick hints</span><span class="kg-chip kg-chip--ghost kg-chip--sm">Return to run</span><span class="kg-chip kg-chip--ghost kg-chip--sm">Upper push</span><span class="kg-chip kg-chip--ghost kg-chip--sm">Deload week</span></div>
+</div></div>
+<div data-region="workout-plan"><div data-component="WorkoutPlanCard" class="kg-card">
+<div class="kg-between"><div><p class="kg-eyebrow">Generated plan</p><h2 class="kg-h1" style="margin-top:6px">Shoulder-safe upper body</h2></div>
+<div class="kg-row-f"><span class="kg-chip kg-chip--safe"><span class="kg-chip__dot"></span>Cleared vs. 2 injuries</span><button class="kg-btn kg-btn--sm">Assign</button><button class="kg-btn kg-btn--ghost kg-btn--sm">Regenerate</button></div></div>
+<div class="kg-row-f" style="gap:var(--space-md);margin:var(--space-md) 0 var(--space-lg)"><span class="kg-mono">48 min</span><span class="kg-mono">6 exercises</span><span class="kg-mono">RPE 6–7</span><span class="kg-mono">wk 3 · block 2</span></div>
+<div class="kg-stack" style="gap:var(--space-sm)" data-component="ExerciseRow">
+<div class="kg-ex-row"><span class="kg-ex-row__idx">1</span><div class="kg-grow"><div class="kg-h3">Trap-bar deadlift</div><p class="kg-mono">4 × 6 · RPE 7 · 90s rest</p></div><span class="kg-chip kg-chip--safe kg-chip--sm">Safe</span></div>
+<div class="kg-ex-row is-flagged"><span class="kg-ex-row__idx">2</span><div class="kg-grow"><div class="kg-h3">Overhead press</div><p class="kg-mono">3 × 8 · RPE 6 · 90s rest</p></div><span class="kg-chip kg-chip--warn"><span class="kg-chip__dot"></span>Shoulder — cap at 60°</span></div>
+<div class="kg-ex-row"><span class="kg-ex-row__idx">3</span><div class="kg-grow"><div class="kg-h3">Chest-supported row</div><p class="kg-mono">3 × 10 · RPE 7 · 60s rest</p></div><span class="kg-chip kg-chip--safe kg-chip--sm">Safe</span></div>
+<div class="kg-ex-row is-flagged"><span class="kg-ex-row__idx">4</span><div class="kg-grow"><div class="kg-h3">Landmine press</div><p class="kg-mono">3 × 10 each · RPE 6</p></div><span class="kg-chip kg-chip--warn"><span class="kg-chip__dot"></span>Unilateral only</span></div>
+<div class="kg-ex-row"><span class="kg-ex-row__idx">5</span><div class="kg-grow"><div class="kg-h3">Face pull</div><p class="kg-mono">3 × 15 · RPE 5 · 45s rest</p></div><span class="kg-chip kg-chip--safe kg-chip--sm">Safe</span></div>
+<div class="kg-ex-row"><span class="kg-ex-row__idx">6</span><div class="kg-grow"><div class="kg-h3">Dead-bag carry</div><p class="kg-mono">3 × 40m · RPE 6</p></div><span class="kg-chip kg-chip--safe kg-chip--sm">Safe</span></div>
+</div></div></div>
+<div data-region="workout-supporting-context"><div data-component="SupportingContextPanel" class="kg-panel">
+<div class="kg-panel__head" style="margin-bottom:var(--space-md)"><div class="kg-row-f"><span class="kg-chip kg-chip--info"><span class="kg-chip__dot"></span>7 sources</span><span class="kg-h3">Supporting context</span></div><span class="kg-mono">collapse &or;</span></div>
+<div class="kg-source"><span class="kg-source__tag">GRAPH</span><div><div class="kg-h3">Rotator cuff strain &rarr; contraindicates overhead abduction &gt;60&deg;</div><p class="kg-mono">node injury/202852009 · edge contraindicates · conf .94</p></div></div>
+<div class="kg-source"><span class="kg-source__tag">NOTE</span><div><div class="kg-h3">Session note, 12 Jul: pain-free to 55&deg; under load</div><p class="kg-mono">coach note · Dana Reyes</p></div></div>
+<div class="kg-source"><span class="kg-source__tag">DOC</span><div><div class="kg-h3">Progressive loading after cuff strain</div><p class="kg-mono">protocol library p.4 · chunk 12</p></div></div>
+</div></div></div>
+</div>
+</div>
