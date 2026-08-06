@@ -124,6 +124,38 @@ evals/             # evaluation dataset + harness + scoring
 docs/              # ontology, token budget, performance, scale notes
 ```
 
+## Stack decisions & deviations from the brief
+
+The brief named several suggested technologies. Where this build diverges, it was a deliberate,
+pragmatic call in the spirit of the brief's "avoid over-engineering / unnecessary infrastructure /
+closed-source magic" guidance — documented here so the choices are explicit, not hidden.
+
+- **Cloud: Railway, not AWS.** Deployed to Railway (config-as-code: a private api service plus a
+  Next.js frontend that proxies to it) rather than AWS. Nothing in the code is AWS-specific, so it
+  is portable; the deployment target is simply Railway. See [RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md).
+- **LLM: OpenAI API directly, not AWS Bedrock AgentCore.** The generation pipeline calls OpenAI
+  through a small `LLMProvider` seam (`app/llm/`), so swapping in Bedrock or a local model is a
+  provider implementation, not a rewrite. Bedrock AgentCore was not used.
+- **Orchestration: LangGraph, not LangChain.** Workout generation is a genuine
+  `langgraph.graph.StateGraph` (retrieve → prefilter → prompt → postvalidate). LangChain was
+  intentionally skipped to avoid an abstraction layer this scope didn't need.
+- **Observability: Langfuse is integrated but opt-in.** The default tracer emits structured JSON
+  logs (latency + token counts); a real `LangfuseTracer` upgrades in automatically when the
+  `langfuse` package and keys are present. Production currently runs the log tracer (no Langfuse
+  keys set), so there is no live Langfuse dashboard unless configured.
+- **VCS/CI: GitLab, not GitHub.** History and CI (ruff + mypy + pytest) live in GitLab CI.
+
+### Two claims worth stating precisely
+
+- **"AI response < 5s" is verified for platform overhead, not live LLM round-trips.** The p95
+  benchmark ([docs/performance.md](docs/performance.md)) stubs the provider to ~0 latency to measure
+  *our* retrieval + graph + assembly cost, which stays well under 5s. End-to-end latency with live
+  OpenAI additionally depends on the provider's response time, which is not controlled here.
+- **Scale: 100K is demonstrated, 100M is a documented path.** The synthetic loader runs a real
+  ~100K-node batched ingest and member scoping is proven index-backed via `EXPLAIN`; reaching
+  ~100M is an operational scaling exercise described in [docs/scale.md](docs/scale.md), not
+  something this build demonstrates end-to-end.
+
 ## Commit conventions
 
 Conventional-commit style, scoped by **ticket number**, so history maps to the build plan
