@@ -43,6 +43,21 @@ class Neo4jClient:
         with self._driver.session() as session:
             return session.execute_write(_run)
 
+    def explain(self, cypher: str, **params: Any) -> dict[str, Any]:
+        """Return the query PLAN for ``cypher`` via ``EXPLAIN`` without executing it.
+
+        Prefixes the query with ``EXPLAIN`` so the planner produces a plan but no work runs,
+        then returns the root plan operator as a nested dict (``{operatorType, children, ...}``).
+        Used to assert that hot paths are index-backed (an index seek, not a label scan).
+        """
+        def _run(tx: ManagedTransaction) -> dict[str, Any]:
+            summary = tx.run(f"EXPLAIN {cypher}", **params).consume()
+            plan = summary.plan
+            return dict(plan) if plan is not None else {}
+
+        with self._driver.session() as session:
+            return session.execute_read(_run)
+
     def close(self) -> None:
         """Close the underlying driver and release its connections."""
         self._driver.close()
