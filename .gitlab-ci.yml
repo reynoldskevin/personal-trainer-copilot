@@ -1,0 +1,99 @@
+# CI for the Knowledge Graph Coaching Platform.
+#
+# The remote is GitLab, so CI runs here (not GitHub Actions). Two jobs run in
+# parallel in the `test` stage:
+#   * backend  — ruff + mypy + the FULL pytest suite, backed by a real Neo4j
+#                service so the integration tests RUN instead of skipping.
+#   * frontend — jest + `tsc --noEmit`.
+# The LLM is faked in tests (dummy OPENAI_API_KEY); no live secret is in this repo.
+#
+# NOTE: this needs a Docker-executor runner (for `services:`). On a shell-only
+# runner the Neo4j service won't start; use a runner with the docker executor.
+
+stages:
+  - test
+
+backend:
+  stage: test
+  image: python:3.14
+  services:
+    # No explicit alias: GitLab auto-derives the `neo4j` hostname from the image.
+    # (An explicit `alias: neo4j` collides with that auto-alias.) Depending on the
+    # runner's networking, the service is reachable either by the `neo4j` alias or
+    # on `localhost` — the readiness probe below discovers which.
+    - name: neo4j:5.26
+  variables:
+    # Put the job and its Neo4j service on one shared per-build Docker network so
+    # the job can reach the service by its `neo4j` alias (without this, on this
+    # runner the service starts but is unreachable from the job container).
+    FF_NETWORK_PER_BUILD: "true"
+    # NOTE: GitLab passes job `variables:` into the SERVICE container too, and the
+    # Neo4j image interprets any NEO4J_* var as a config setting. So ONLY NEO4J_AUTH
+    # (which Neo4j understands) may live here — NEO4J_USER/NEO4J_PASSWORD would be
+    # read as bogus settings ("Unrecognized setting: PASSWORD") and Neo4j would
+    # refuse to start. The test suite gets USER/PASSWORD via `export` below instead,
+    # and NEO4J_URI is discovered at runtime by the probe (written to neo4j.env).
+    NEO4J_AUTH: "neo4j/testpassword"
+    LLM_PROVIDER: "openai"
+    # Dummy — the tests use a deterministic fake provider and never call OpenAI.
+    OPENAI_API_KEY: "sk-test-not-real"
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  cache:
+    key: "pip-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .cache/pip
+  before_script:
+    # Credentials for the test suite — exported in-shell so they do NOT leak into
+    # the Neo4j service container (see the note above). NEO4J_PASSWORD matches the
+    # NEO4J_AUTH password above.
+    - export NEO4J_USER=neo4j NEO4J_PASSWORD=testpassword
+    - python -m pip install --upgrade pip
+    - pip install -e ".[dev]"
+    # Discover which host the Neo4j service is reachable on for THIS runner
+    # (`neo4j` service alias vs `localhost`/`127.0.0.1` shared-netns), wait for it
+    # to accept Bolt, and record the working URI so the suite's integration tests
+    # run against a real DB instead of hitting their skip fallback.
+    - |
+      python - <<'PY'
+      import time
+      from neo4j import GraphDatabase
+      hosts = ["neo4j", "localhost", "127.0.0.1"]
+      deadline = time.time() + 180
+      chosen = None
+      while time.time() < deadline and chosen is None:
+          for h in hosts:
+              uri = f"bolt://{h}:7687"
+              try:
+                  drv = GraphDatabase.driver(uri, auth=("neo4j", "testpassword"))
+                  drv.verify_connectivity()
+                  with drv.session() as s:
+                      s.run("RETURN 1").consume()
+                  drv.close()
+                  chosen = uri
+                  break
+              except Exception as exc:  # noqa: BLE001
+                  print(f"{uri}: {type(exc).__name__}: {exc}")
+          if chosen is None:
+              time.sleep(3)
+      if chosen is None:
+          raise SystemExit(f"no reachable Neo4j among {hosts} within 180s")
+      print(f"Neo4j reachable at {chosen}")
+      with open("neo4j.env", "w") as f:
+          f.write(f"NEO4J_URI={chosen}\n")
+      PY
+  script:
+    - ruff check .
+    - mypy app
+    - export $(cat neo4j.env) && echo "using $NEO4J_URI" && pytest -q
+
+frontend:
+  stage: test
+  image: node:20
+  # No node_modules cache: `npm ci` does a clean install from the lockfile, and a
+  # restored partial node_modules cache corrupts it (ENOENT during install).
+  before_script:
+    - cd frontend
+    - npm ci
+  script:
+    - npm test -- --watchAll=false
+    - npx tsc --noEmit
