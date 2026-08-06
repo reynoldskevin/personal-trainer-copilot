@@ -23,16 +23,13 @@ backend:
     # on `localhost` — the readiness probe below discovers which.
     - name: neo4j:5.26
   variables:
-    # Passed into the Neo4j service container to set its single-user credentials.
+    # NOTE: GitLab passes job `variables:` into the SERVICE container too, and the
+    # Neo4j image interprets any NEO4J_* var as a config setting. So ONLY NEO4J_AUTH
+    # (which Neo4j understands) may live here — NEO4J_USER/NEO4J_PASSWORD would be
+    # read as bogus settings ("Unrecognized setting: PASSWORD") and Neo4j would
+    # refuse to start. The test suite gets USER/PASSWORD via `export` below instead,
+    # and NEO4J_URI is discovered at runtime by the probe (written to neo4j.env).
     NEO4J_AUTH: "neo4j/testpassword"
-    # Keep Neo4j's footprint small so a memory-capped shared runner doesn't kill it
-    # before it starts listening on Bolt.
-    NEO4J_server_memory_heap_initial__size: "256m"
-    NEO4J_server_memory_heap_max__size: "512m"
-    NEO4J_server_memory_pagecache_size: "256m"
-    # NEO4J_URI is discovered at runtime (see the probe) and written to neo4j.env.
-    NEO4J_USER: "neo4j"
-    NEO4J_PASSWORD: "testpassword"
     LLM_PROVIDER: "openai"
     # Dummy — the tests use a deterministic fake provider and never call OpenAI.
     OPENAI_API_KEY: "sk-test-not-real"
@@ -42,6 +39,10 @@ backend:
     paths:
       - .cache/pip
   before_script:
+    # Credentials for the test suite — exported in-shell so they do NOT leak into
+    # the Neo4j service container (see the note above). NEO4J_PASSWORD matches the
+    # NEO4J_AUTH password above.
+    - export NEO4J_USER=neo4j NEO4J_PASSWORD=testpassword
     - python -m pip install --upgrade pip
     - pip install -e ".[dev]"
     # Discover which host the Neo4j service is reachable on for THIS runner
