@@ -32,6 +32,7 @@ from pydantic import BaseModel
 from app.generation import guardrails
 from app.graph.client import Neo4jClient
 from app.llm.provider import LLMProvider
+from app.observability import tracing
 from app.retrieval import service
 from app.retrieval.service import ContextBundle
 
@@ -39,6 +40,9 @@ from app.retrieval.service import ContextBundle
 DEFAULT_QUERY: str = "Design a safe, personalized strength workout for this member."
 DEFAULT_TOKEN_BUDGET: int = service.DEFAULT_TOKEN_BUDGET
 DEFAULT_K: int = service.DEFAULT_K
+
+# Prompt version pinned onto every emitted generation trace for this pipeline.
+PROMPT_VERSION: str = "workout-v1"
 
 
 class PlannedExercise(BaseModel):
@@ -303,14 +307,18 @@ def generate_workout(
     then post-validate the model's output against the contraindication set. The returned plan is
     guaranteed to contain no exercise unsafe for the member's injuries.
     """
-    app = _build_graph()
-    initial: _WorkoutState = {
-        "client": client,
-        "provider": provider,
-        "member_id": member_id,
-        "query": query,
-        "token_budget": token_budget,
-        "k": k,
-    }
-    final_state: _WorkoutState = app.invoke(initial)  # type: ignore[attr-defined]
-    return final_state["plan"]
+    with tracing.get_tracer().trace("generation.workout", prompt_version=PROMPT_VERSION) as span:
+        app = _build_graph()
+        initial: _WorkoutState = {
+            "client": client,
+            "provider": provider,
+            "member_id": member_id,
+            "query": query,
+            "token_budget": token_budget,
+            "k": k,
+        }
+        final_state: _WorkoutState = app.invoke(initial)  # type: ignore[attr-defined]
+        plan = final_state["plan"]
+        usage = tracing.token_usage(final_state["messages"], final_state["completion"])
+        span.set(**usage, exercises=len(plan.exercises))
+        return plan

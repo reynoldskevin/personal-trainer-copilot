@@ -32,6 +32,7 @@ from pydantic import BaseModel
 from app.graph.client import Neo4jClient
 from app.ingestion import ontology
 from app.llm.provider import LLMProvider
+from app.observability import tracing
 from app.retrieval import embeddings
 from app.retrieval.temporal import (
     TimeWindow,
@@ -314,52 +315,64 @@ def retrieve(
     ``context_items`` so the trends survive the token budget. When ``window`` is ``None`` the
     behaviour is unchanged and ``trends`` stays ``None``.
     """
-    qvec = embeddings.embed_query(provider, query)
-    raw_hits = embeddings.similarity_search(client, qvec, k=k)
-    vector_hits = [
-        VectorHit(
-            id=hit["id"],
-            labels=hit["labels"],
-            score=hit["score"],
-            text=hit.get("text"),
+    tracer = tracing.get_tracer()
+    with tracer.span("retrieval", member_id=member_id) as rspan:
+        with tracer.span("retrieval.vector_search"):
+            qvec = embeddings.embed_query(provider, query)
+            raw_hits = embeddings.similarity_search(client, qvec, k=k)
+            vector_hits = [
+                VectorHit(
+                    id=hit["id"],
+                    labels=hit["labels"],
+                    score=hit["score"],
+                    text=hit.get("text"),
+                )
+                for hit in raw_hits
+            ]
+
+        with tracer.span("retrieval.contraindications"):
+            contraindications = _contraindications(client, member_id)
+
+        with tracer.span("retrieval.subgraph"):
+            trends: TrendSummary | None = None
+            summary_lines: list[str] = []
+            if window is None:
+                subgraph_facts = _subgraph_facts(client, member_id)
+            else:
+                workout_rows = _member_workout_rows(client, member_id)
+                adherence_rows = _member_adherence_rows(client, member_id)
+                biometric_rows = _member_biometric_rows(client, member_id)
+                subgraph_facts = _windowed_subgraph_facts(
+                    client, member_id, window, workout_rows, adherence_rows, biometric_rows
+                )
+                trends = compute_trends(
+                    window=window,
+                    adherence_rows=adherence_rows,
+                    biometric_rows=biometric_rows,
+                    workout_rows=workout_rows,
+                )
+                summary_lines = trends.summary_lines
+
+        candidates: list[str] = list(summary_lines)
+        candidates.extend(subgraph_facts)
+        candidates.extend(hit.text for hit in vector_hits if hit.text)
+        context_items, token_estimate = _budgeted_items(candidates, token_budget)
+
+        rspan.set(
+            token_estimate=token_estimate,
+            vector_hits=len(vector_hits),
+            subgraph_facts=len(subgraph_facts),
+            contraindications=len(contraindications),
         )
-        for hit in raw_hits
-    ]
 
-    contraindications = _contraindications(client, member_id)
-
-    trends: TrendSummary | None = None
-    summary_lines: list[str] = []
-    if window is None:
-        subgraph_facts = _subgraph_facts(client, member_id)
-    else:
-        workout_rows = _member_workout_rows(client, member_id)
-        adherence_rows = _member_adherence_rows(client, member_id)
-        biometric_rows = _member_biometric_rows(client, member_id)
-        subgraph_facts = _windowed_subgraph_facts(
-            client, member_id, window, workout_rows, adherence_rows, biometric_rows
+        return ContextBundle(
+            member_id=member_id,
+            query=query,
+            vector_hits=vector_hits,
+            subgraph_facts=subgraph_facts,
+            context_items=context_items,
+            contraindications=contraindications,
+            token_estimate=token_estimate,
+            token_budget=token_budget,
+            trends=trends,
         )
-        trends = compute_trends(
-            window=window,
-            adherence_rows=adherence_rows,
-            biometric_rows=biometric_rows,
-            workout_rows=workout_rows,
-        )
-        summary_lines = trends.summary_lines
-
-    candidates: list[str] = list(summary_lines)
-    candidates.extend(subgraph_facts)
-    candidates.extend(hit.text for hit in vector_hits if hit.text)
-    context_items, token_estimate = _budgeted_items(candidates, token_budget)
-
-    return ContextBundle(
-        member_id=member_id,
-        query=query,
-        vector_hits=vector_hits,
-        subgraph_facts=subgraph_facts,
-        context_items=context_items,
-        contraindications=contraindications,
-        token_estimate=token_estimate,
-        token_budget=token_budget,
-        trends=trends,
-    )
