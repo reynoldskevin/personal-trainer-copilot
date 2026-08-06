@@ -20,6 +20,10 @@ backend:
     - name: neo4j:5.26
       alias: neo4j
   variables:
+    # Put the job + its services on a dedicated per-build Docker network so the
+    # `neo4j` service alias resolves via DNS (without this, some runners don't
+    # register service aliases and `neo4j:7687` fails to resolve).
+    FF_NETWORK_PER_BUILD: "true"
     # Passed into the Neo4j service container to set its single-user credentials.
     NEO4J_AUTH: "neo4j/testpassword"
     # Consumed by the test suite (conftest only fills these if unset).
