@@ -17,8 +17,10 @@ backend:
   stage: test
   image: python:3.14
   services:
+    # No explicit alias: GitLab auto-derives the `neo4j` hostname from the image
+    # name. Setting `alias: neo4j` collides with that auto-alias ("alias already
+    # in use"), which leaves the hostname unregistered on the per-build network.
     - name: neo4j:5.26
-      alias: neo4j
   variables:
     # Put the job + its services on a dedicated per-build Docker network so the
     # `neo4j` service alias resolves via DNS (without this, some runners don't
