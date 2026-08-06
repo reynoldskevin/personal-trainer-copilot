@@ -21,6 +21,7 @@ import json
 
 from pydantic import BaseModel
 
+from app.generation import budget
 from app.generation.workout import _extract_json_object
 from app.graph.client import Neo4jClient
 from app.llm.provider import LLMProvider
@@ -203,7 +204,7 @@ def generate_insight(
         risk_flags = risk_flags_from_trends(bundle.trends) if bundle.trends else []
 
         messages = _build_messages(bundle)
-        completion = provider.chat(messages, response_format={"type": "json_object"})
+        completion = provider.chat(messages, response_format=budget.RESPONSE_FORMAT)
         usage = tracing.token_usage(messages, completion)
         span.set(**usage)
         summary, notes, recommended = _parse_insight(completion)

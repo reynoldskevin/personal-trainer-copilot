@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     llm_provider: str = "openai"
     openai_api_key: str | None = None
 
+    # Retrieval / generation — the default context token budget for a fused context bundle.
+    # Environment-configurable (e.g. CONTEXT_TOKEN_BUDGET=1500); see docs/token_budget.md.
+    context_token_budget: int = 2000
+
     # Observability (optional — LangFuse tracing is opt-in and never a hard dependency)
     langfuse_public_key: str | None = None
     langfuse_secret_key: str | None = None
