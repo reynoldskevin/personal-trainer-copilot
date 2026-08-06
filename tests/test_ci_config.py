@@ -92,6 +92,25 @@ def test_frontend_checks_run():
     assert "tsc" in scripts, "pipeline must type-check the frontend (tsc --noEmit)"
 
 
+def test_frontend_install_is_resilient_to_partial_npm_ci():
+    """`npm ci` can exit 0 yet leave node_modules incomplete (TAR_ENTRY_ERROR flood ->
+    missing `jest` binary -> `jest: not found`, exit 127). The frontend job must therefore
+    VERIFY the installed binary exists (not trust npm's exit code) and reinstall on failure,
+    so a transient extraction fault self-heals instead of needing a manual pipeline retry."""
+    config = _load()
+    frontend = config.get("frontend")
+    assert isinstance(frontend, dict), "frontend job must exist"
+    before = frontend.get("before_script", [])
+    text = "\n".join(before if isinstance(before, list) else [str(before)])
+    assert "node_modules/.bin/jest" in text, (
+        "frontend install must verify the jest binary exists, not trust `npm ci`'s exit code"
+    )
+    # A retry/reinstall loop is what makes the transient corruption self-heal.
+    assert "for attempt" in text or "npm cache clean" in text, (
+        "frontend install must reinstall on a partial/corrupt npm ci"
+    )
+
+
 def test_llm_mocked_and_no_live_secret_in_repo():
     """Tests use a fake LLM; the pipeline must NOT embed a real OpenAI key.
 
