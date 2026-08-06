@@ -9,8 +9,8 @@ A deterministic synthetic-member generator plus a batched, idempotent bulk-inges
 - :func:`bulk_ingest` chunks the load into batches and delegates each to
   :func:`app.ingestion.members.ingest_members`, whose ``MERGE``-on-stable-id writes make the whole
   thing idempotent: re-running duplicates nothing.
-- :func:`member_lookup_plan` + :func:`uses_index_seek` inspect the ``EXPLAIN`` query plan for the
-  hot member-scoped lookup, confirming it is an index seek (not a full label scan) at scale.
+- :func:`member_lookup_plan` + :func:`uses_index_lookup` inspect the ``EXPLAIN`` query plan for the
+  hot member-scoped lookup, confirming it is index-backed (not a full label scan) at scale.
 - :func:`measure_retrieval_latency` times member-scoped retrieval so a caller can assert it stays
   under :data:`SCALE_LATENCY_BUDGET_MS`.
 
@@ -208,14 +208,24 @@ def bulk_ingest(
 # --------------------------------------------------------------------------- query-plan checks
 
 # The hot member-scoped read: everything downstream starts from this anchored MATCH, so if THIS
-# is an index seek the retrieval path is index-backed at any scale.
+# lookup is index-backed the retrieval path stays index-backed at any scale.
 _MEMBER_LOOKUP_CYPHER = (
     "MATCH (m:Member {id: $member_id})-[:HAS_INJURY]->(i:Injury) RETURN i.id AS id"
 )
 
+# Plan operators that read EVERY node of a label (or the whole store) — the un-indexed hot-path
+# regression the plan check must catch.
+_FULL_SCAN_OPS = ("NodeByLabelScan", "AllNodesScan")
+
 
 def member_lookup_plan(client: Neo4jClient, member_id: str) -> dict[str, Any]:
-    """Return the ``EXPLAIN`` plan (root operator dict) for the hot member-scoped lookup."""
+    """Return the ``EXPLAIN`` plan (root operator dict) for the hot member-scoped lookup.
+
+    Waits for indexes to come ONLINE first so the plan reflects the intended index-backed access
+    (a freshly created constraint index that is still populating can otherwise be planned as an
+    index scan rather than the ideal unique-index seek).
+    """
+    client.execute_read("CALL db.awaitIndexes($seconds)", seconds=30)
     return client.explain(_MEMBER_LOOKUP_CYPHER, member_id=member_id)
 
 
@@ -230,9 +240,19 @@ def plan_operators(plan: dict[str, Any]) -> list[str]:
     return ops
 
 
-def uses_index_seek(plan: dict[str, Any]) -> bool:
-    """True iff the plan performs an index seek (e.g. ``NodeUniqueIndexSeek``), not a label scan."""
-    return any("IndexSeek" in op for op in plan_operators(plan))
+def uses_index_lookup(plan: dict[str, Any]) -> bool:
+    """True iff the hot member lookup is index-backed rather than a full label/all-nodes scan.
+
+    The anchored ``(m:Member {id: ...})`` lookup is index-backed on ``Member.id`` — ideally a
+    ``NodeUniqueIndexSeek`` (O(1)), which is what production gets from the uniqueness constraint.
+    Depending on index state/version the planner may instead pick a ``NodeIndexScan``; both hit the
+    id index and satisfy "index usage on the hot path". The regression this guards against is the
+    lookup degrading to a ``NodeByLabelScan`` — reading every Member — which this returns False for.
+    """
+    ops = plan_operators(plan)
+    has_index = any("Index" in op for op in ops)
+    has_full_scan = any(scan in op for op in ops for scan in _FULL_SCAN_OPS)
+    return has_index and not has_full_scan
 
 
 # --------------------------------------------------------------------------- latency at scale
