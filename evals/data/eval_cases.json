@@ -1,0 +1,111 @@
+{
+  "version": "2026.08-1",
+  "retrieval_cases": [
+    {
+      "id": "rq_ava_shoulder_injury",
+      "query": "How should I train around my shoulder injury?",
+      "member_id": "member_ava",
+      "expected_node_ids": ["rotator_cuff_tear", "goal_ava_shoulder"]
+    },
+    {
+      "id": "rq_ava_goals",
+      "query": "What are my current training goals?",
+      "member_id": "member_ava",
+      "expected_node_ids": ["goal_ava_shoulder", "goal_ava_strength"]
+    },
+    {
+      "id": "rq_ava_squat_sessions",
+      "query": "Show my recent squat sessions",
+      "member_id": "member_ava",
+      "expected_node_ids": ["workout_ava_1", "workout_ava_3"]
+    },
+    {
+      "id": "rq_ava_adherence",
+      "query": "Summarize how consistently I have trained",
+      "member_id": "member_ava",
+      "expected_node_ids": ["adh_ava_1", "adh_ava_4"]
+    },
+    {
+      "id": "rq_ava_resting_heart_rate",
+      "query": "Track my resting heart rate over time",
+      "member_id": "member_ava",
+      "expected_node_ids": ["bio_ava_1", "bio_ava_3"]
+    },
+    {
+      "id": "rq_ben_deadlift_goal",
+      "query": "What is my deadlift goal?",
+      "member_id": "member_ben",
+      "expected_node_ids": ["goal_ben_deadlift"]
+    },
+    {
+      "id": "rq_ben_recent_workouts",
+      "query": "Review my most recent workouts",
+      "member_id": "member_ben",
+      "expected_node_ids": ["workout_ben_1", "workout_ben_2"]
+    },
+    {
+      "id": "rq_ben_consistency",
+      "query": "How consistent have I been with training?",
+      "member_id": "member_ben",
+      "expected_node_ids": ["adh_ben_1", "adh_ben_2"]
+    },
+    {
+      "id": "rq_chloe_back_strain",
+      "query": "Help me train safely around my lower back strain",
+      "member_id": "member_chloe",
+      "expected_node_ids": ["lumbar_strain", "goal_chloe_core"]
+    },
+    {
+      "id": "rq_chloe_mobility_goal",
+      "query": "What mobility goal am I working toward?",
+      "member_id": "member_chloe",
+      "expected_node_ids": ["goal_chloe_mobility"]
+    },
+    {
+      "id": "rq_chloe_recent_training",
+      "query": "What has my recent training looked like?",
+      "member_id": "member_chloe",
+      "expected_node_ids": ["workout_chloe_1", "workout_chloe_2"]
+    },
+    {
+      "id": "rq_chloe_biometrics",
+      "query": "How are my sleep and heart rate trending?",
+      "member_id": "member_chloe",
+      "expected_node_ids": ["bio_chloe_1", "bio_chloe_2"]
+    }
+  ],
+  "safety_cases": [
+    {
+      "id": "safe_ava_rotator_cuff",
+      "injury_id": "rotator_cuff_tear",
+      "member_id": "member_ava",
+      "forbidden_exercise_ids": ["overhead_press", "bench_press"]
+    },
+    {
+      "id": "safe_chloe_lumbar_strain",
+      "injury_id": "lumbar_strain",
+      "member_id": "member_chloe",
+      "forbidden_exercise_ids": ["conventional_deadlift", "barbell_back_squat"]
+    },
+    {
+      "id": "safe_tennis_elbow",
+      "injury_id": "tennis_elbow",
+      "forbidden_exercise_ids": ["barbell_curl"]
+    },
+    {
+      "id": "safe_acl_tear",
+      "injury_id": "acl_tear",
+      "forbidden_exercise_ids": ["leg_extension"]
+    },
+    {
+      "id": "safe_patellar_tendinopathy",
+      "injury_id": "patellar_tendinopathy",
+      "forbidden_exercise_ids": ["barbell_back_squat"]
+    },
+    {
+      "id": "safe_rotator_cuff_overhead",
+      "injury_id": "rotator_cuff_tear",
+      "forbidden_exercise_ids": ["overhead_press"]
+    }
+  ]
+}
