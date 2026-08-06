@@ -37,7 +37,11 @@ packages = [
     "app.llm",
     "app.observability",
     "app.retrieval",
+    "evals",
 ]
+
+[tool.setuptools.package-data]
+evals = ["data/*.json"]
 
 [tool.ruff]
 line-length = 100
