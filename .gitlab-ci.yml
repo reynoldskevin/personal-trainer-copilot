@@ -23,6 +23,10 @@ backend:
     # on `localhost` — the readiness probe below discovers which.
     - name: neo4j:5.26
   variables:
+    # Put the job and its Neo4j service on one shared per-build Docker network so
+    # the job can reach the service by its `neo4j` alias (without this, on this
+    # runner the service starts but is unreachable from the job container).
+    FF_NETWORK_PER_BUILD: "true"
     # NOTE: GitLab passes job `variables:` into the SERVICE container too, and the
     # Neo4j image interprets any NEO4J_* var as a config setting. So ONLY NEO4J_AUTH
     # (which Neo4j understands) may live here — NEO4J_USER/NEO4J_PASSWORD would be
