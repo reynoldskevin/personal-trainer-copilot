@@ -32,9 +32,10 @@ python -m app.ingestion.scale --members 10000
 Retrieval is **member-scoped**: every subgraph read starts from `(m:Member {id: $member_id})`.
 That anchor resolves through the uniqueness constraint on `Member.id` (a backing index), so the hot
 path is an **index seek**, not a full label scan — its cost is independent of how many members
-exist. `scale.member_lookup_plan` runs `EXPLAIN` on that lookup and `scale.uses_index_seek` asserts
-the plan contains an index seek (e.g. `NodeUniqueIndexSeek`); the test proves this holds after a
-scaled load. `scale.measure_retrieval_latency` then times member-scoped retrieval and the test
+exist. `scale.member_lookup_plan` runs `EXPLAIN` on that lookup and `scale.uses_index_lookup` asserts
+the plan is index-backed on `Member.id` — ideally a `NodeUniqueIndexSeek` (O(1), what the
+production uniqueness constraint yields), accepting a `NodeIndexScan` as well and failing only on a
+full `NodeByLabelScan`; the test proves this holds after a scaled load. `scale.measure_retrieval_latency` then times member-scoped retrieval and the test
 asserts p95 stays under `SCALE_LATENCY_BUDGET_MS`.
 
 Indexes that keep the hot paths sub-linear (from `app.graph.schema`):

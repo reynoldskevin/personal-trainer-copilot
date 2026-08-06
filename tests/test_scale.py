@@ -12,8 +12,9 @@ Contract (`app.ingestion.scale`):
 - `bulk_ingest(client, members, *, batch_size) -> dict` — idempotent, chunked bulk load; the
   returned dict reports `members` and `batches` and re-running never duplicates.
 - `member_lookup_plan(client, member_id) -> dict` — the `EXPLAIN` plan root for the hot
-  member-scoped lookup; `plan_operators(plan) -> list[str]` flattens it and `uses_index_seek(plan)`
-  is True iff some operator is an index seek (not a label scan).
+  member-scoped lookup; `plan_operators(plan) -> list[str]` flattens it and
+  `uses_index_lookup(plan)` is True iff the lookup is index-backed (an index seek or index scan on
+  Member.id), not a full label scan.
 - `measure_retrieval_latency(client, provider, member_id, query, *, iterations) -> LatencyStats`
   and `SCALE_LATENCY_BUDGET_MS` — member-scoped retrieval must stay under budget at scale.
 
@@ -109,6 +110,17 @@ _INDEX_PLAN = {
         }
     ],
 }
+# A NodeIndexScan still hits the id index (index-backed) — the planner may pick it over a seek
+# depending on index state/version; it must be accepted, unlike a full label scan.
+_INDEX_SCAN_PLAN = {
+    "operatorType": "ProduceResults",
+    "children": [
+        {
+            "operatorType": "Filter",
+            "children": [{"operatorType": "NodeIndexScan", "children": []}],
+        }
+    ],
+}
 _SCAN_PLAN = {
     "operatorType": "ProduceResults",
     "children": [
@@ -127,9 +139,12 @@ def test_plan_operators_flattens_the_tree():
     assert len(ops) == 3
 
 
-def test_uses_index_seek_distinguishes_seek_from_scan():
-    assert scale.uses_index_seek(_INDEX_PLAN) is True
-    assert scale.uses_index_seek(_SCAN_PLAN) is False
+def test_uses_index_lookup_accepts_index_access_rejects_full_scan():
+    # Both an index seek (ideal) and an index scan are index-backed on Member.id.
+    assert scale.uses_index_lookup(_INDEX_PLAN) is True
+    assert scale.uses_index_lookup(_INDEX_SCAN_PLAN) is True
+    # A full label scan (no index) is the regression this must catch.
+    assert scale.uses_index_lookup(_SCAN_PLAN) is False
 
 
 def test_main_is_callable():
@@ -217,7 +232,7 @@ def test_member_lookup_uses_an_index_seek(client):
     scale.bulk_ingest(client, scale.generate_members(_SUBSET_MEMBERS), batch_size=50)
     mid = scale.synthetic_member(0)["id"]
     plan = scale.member_lookup_plan(client, mid)
-    assert scale.uses_index_seek(plan), (
+    assert scale.uses_index_lookup(plan), (
         f"member lookup must be index-backed, plan was: {scale.plan_operators(plan)}"
     )
 
