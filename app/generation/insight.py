@@ -24,8 +24,12 @@ from pydantic import BaseModel
 from app.generation.workout import _extract_json_object
 from app.graph.client import Neo4jClient
 from app.llm.provider import LLMProvider
+from app.observability import tracing
 from app.retrieval import service
 from app.retrieval.temporal import TimeWindow, TrendSummary
+
+# Prompt version pinned onto every emitted insight generation trace.
+PROMPT_VERSION: str = "insight-v1"
 
 # Default review query, retrieval window, token budget and vector fan-out for an insight report.
 DEFAULT_QUERY: str = "Review this member's recent training trends, adherence and injury risks."
@@ -184,48 +188,50 @@ def generate_insight(
     if not member_id or not member_id.strip():
         raise ValueError("member_id must be a non-empty string")
 
-    window = window or TimeWindow(weeks=DEFAULT_WINDOW_WEEKS)
-    bundle = service.retrieve(
-        client,
-        provider,
-        member_id,
-        DEFAULT_QUERY,
-        token_budget=token_budget,
-        k=k,
-        window=window,
-    )
+    with tracing.get_tracer().trace("generation.insight", prompt_version=PROMPT_VERSION) as span:
+        window = window or TimeWindow(weeks=DEFAULT_WINDOW_WEEKS)
+        bundle = service.retrieve(
+            client,
+            provider,
+            member_id,
+            DEFAULT_QUERY,
+            token_budget=token_budget,
+            k=k,
+            window=window,
+        )
 
-    risk_flags = risk_flags_from_trends(bundle.trends) if bundle.trends else []
+        risk_flags = risk_flags_from_trends(bundle.trends) if bundle.trends else []
 
-    completion = provider.chat(
-        _build_messages(bundle), response_format={"type": "json_object"}
-    )
-    summary, notes, recommended = _parse_insight(completion)
+        messages = _build_messages(bundle)
+        completion = provider.chat(messages, response_format={"type": "json_object"})
+        usage = tracing.token_usage(messages, completion)
+        span.set(**usage)
+        summary, notes, recommended = _parse_insight(completion)
 
-    # Structural safety invariant (same guarantee the workout path enforces): strip any
-    # recommendation contraindicated for the member's active injuries, preserving order.
-    unsafe = set(bundle.contraindications)
-    offenders = [rec for rec in recommended if rec in unsafe]
-    excluded = set(offenders)
-    safety_flags = [
-        f"Excluded contraindicated recommendation '{offender}' — unsafe for this member's "
-        f"active injuries."
-        for offender in offenders
-    ]
+        # Structural safety invariant (same guarantee the workout path enforces): strip any
+        # recommendation contraindicated for the member's active injuries, preserving order.
+        unsafe = set(bundle.contraindications)
+        offenders = [rec for rec in recommended if rec in unsafe]
+        excluded = set(offenders)
+        safety_flags = [
+            f"Excluded contraindicated recommendation '{offender}' — unsafe for this member's "
+            f"active injuries."
+            for offender in offenders
+        ]
 
-    # Fold only the safe recommendations into the personalization notes; offenders never appear
-    # in a kept/recommended position.
-    personalization_notes = list(notes)
-    for rec in recommended:
-        if rec not in excluded:
-            personalization_notes.append(f"Recommended focus: {rec}.")
+        # Fold only the safe recommendations into the personalization notes; offenders never
+        # appear in a kept/recommended position.
+        personalization_notes = list(notes)
+        for rec in recommended:
+            if rec not in excluded:
+                personalization_notes.append(f"Recommended focus: {rec}.")
 
-    return InsightReport(
-        member_id=member_id,
-        summary=summary,
-        risk_flags=risk_flags,
-        personalization_notes=personalization_notes,
-        trends=bundle.trends,
-        excluded_contraindicated=offenders,
-        safety_flags=safety_flags,
-    )
+        return InsightReport(
+            member_id=member_id,
+            summary=summary,
+            risk_flags=risk_flags,
+            personalization_notes=personalization_notes,
+            trends=bundle.trends,
+            excluded_contraindicated=offenders,
+            safety_flags=safety_flags,
+        )

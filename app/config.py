@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     llm_provider: str = "openai"
     openai_api_key: str | None = None
 
+    # Observability (optional — LangFuse tracing is opt-in and never a hard dependency)
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: str | None = None
+    langfuse_host: str | None = None
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -14,11 +14,15 @@ from pydantic import BaseModel
 
 from app.graph.client import Neo4jClient
 from app.llm.provider import LLMProvider
+from app.observability import tracing
 from app.retrieval import service
 
 # Reuse the retrieval service's defaults so chat and retrieval stay in lockstep.
 DEFAULT_TOKEN_BUDGET: int = service.DEFAULT_TOKEN_BUDGET
 DEFAULT_K: int = service.DEFAULT_K
+
+# Prompt version pinned onto every emitted chat generation trace.
+PROMPT_VERSION: str = "chat-v1"
 
 
 class ChatAnswer(BaseModel):
@@ -59,32 +63,35 @@ def answer_question(
     frames the assistant as answering the coach (never drafting a client-facing reply), calls
     :meth:`LLMProvider.chat`, and returns the grounded answer plus the context it used.
     """
-    bundle = service.retrieve(
-        client,
-        provider,
-        member_id,
-        message,
-        token_budget=token_budget,
-        k=k,
-    )
+    with tracing.get_tracer().trace("generation.chat", prompt_version=PROMPT_VERSION) as span:
+        bundle = service.retrieve(
+            client,
+            provider,
+            member_id,
+            message,
+            token_budget=token_budget,
+            k=k,
+        )
 
-    context_lines = bundle.context_items or bundle.subgraph_facts
-    user = (
-        "Member context:\n"
-        + "\n".join(context_lines)
-        + "\n\nThe coach asks: "
-        + message
-        + "\n\nAnswer the coach's question grounded only in the member context above."
-    )
-    messages: list[dict[str, str]] = [
-        {"role": "system", "content": _SYSTEM_PROMPT},
-        {"role": "user", "content": user},
-    ]
+        context_lines = bundle.context_items or bundle.subgraph_facts
+        user = (
+            "Member context:\n"
+            + "\n".join(context_lines)
+            + "\n\nThe coach asks: "
+            + message
+            + "\n\nAnswer the coach's question grounded only in the member context above."
+        )
+        messages: list[dict[str, str]] = [
+            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "user", "content": user},
+        ]
 
-    completion = provider.chat(messages)
-    return ChatAnswer(
-        member_id=member_id,
-        message=message,
-        answer=completion,
-        context_used=bundle.context_items,
-    )
+        completion = provider.chat(messages)
+        usage = tracing.token_usage(messages, completion)
+        span.set(**usage)
+        return ChatAnswer(
+            member_id=member_id,
+            message=message,
+            answer=completion,
+            context_used=bundle.context_items,
+        )
