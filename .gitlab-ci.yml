@@ -89,10 +89,8 @@ backend:
 frontend:
   stage: test
   image: node:20
-  cache:
-    key: "npm-$CI_COMMIT_REF_SLUG"
-    paths:
-      - frontend/node_modules
+  # No node_modules cache: `npm ci` does a clean install from the lockfile, and a
+  # restored partial node_modules cache corrupts it (ENOENT during install).
   before_script:
     - cd frontend
     - npm ci
