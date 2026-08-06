@@ -29,6 +29,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from app.generation import budget
 from app.graph.client import Neo4jClient
 from app.ingestion import ontology
 from app.llm.provider import LLMProvider
@@ -276,20 +277,14 @@ def _contraindications(client: Neo4jClient, member_id: str) -> list[str]:
 
 
 def _budgeted_items(candidates: list[str], token_budget: int) -> tuple[list[str], int]:
-    """Greedily include candidates while the running token estimate stays within the budget.
+    """Truncate ``candidates`` to ``token_budget`` by rank (highest-ranked prefix kept).
 
-    Returns the included items (in order) and their summed :func:`estimate_tokens`, which never
-    exceeds ``token_budget``.
+    Delegates to :func:`app.generation.budget.truncate_to_budget` so retrieval, prompt guards and
+    trace token counts all share one truncation rule: candidates are already ordered by importance
+    (trend summaries, then subgraph facts, then vector-hit texts), and the kept set is the
+    highest-ranked prefix whose summed :func:`estimate_tokens` never exceeds ``token_budget``.
     """
-    included: list[str] = []
-    total = 0
-    for item in candidates:
-        cost = estimate_tokens(item)
-        if total + cost > token_budget:
-            continue
-        included.append(item)
-        total += cost
-    return included, total
+    return budget.truncate_to_budget(candidates, token_budget)
 
 
 def retrieve(

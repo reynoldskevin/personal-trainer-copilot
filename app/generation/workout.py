@@ -29,7 +29,7 @@ from typing import TypedDict
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel
 
-from app.generation import guardrails
+from app.generation import budget, guardrails
 from app.graph.client import Neo4jClient
 from app.llm.provider import LLMProvider
 from app.observability import tracing
@@ -43,6 +43,40 @@ DEFAULT_K: int = service.DEFAULT_K
 
 # Prompt version pinned onto every emitted generation trace for this pipeline.
 PROMPT_VERSION: str = "workout-v1"
+
+# Regression ceiling for a representative assembled workout prompt (system + a budgeted context +
+# the full safe-candidate catalog). Guards against prompt-assembly bloat; see docs/token_budget.md.
+WORKOUT_PROMPT_TOKEN_BUDGET: int = 3000
+
+_SYSTEM_PROMPT: str = (
+    "You are a certified strength coach who designs safe, personalized workouts. "
+    "You may only prescribe exercises drawn from the provided safe candidate list; "
+    "never invent exercises or use any not listed. Return ONLY a JSON object of the form "
+    '{"summary": str, "exercises": [{"exercise_id": str, "name": str, "sets": int, '
+    '"reps": int, "notes": str (optional)}]}.'
+)
+
+
+def build_workout_messages(
+    context_lines: list[str], candidate_lines: list[str]
+) -> list[dict[str, str]]:
+    """Assemble the workout chat ``messages`` from member context and safe candidate lines.
+
+    Pure and side-effect-free so the prompt can be measured (:func:`budget.count_prompt_tokens`)
+    and regression-guarded independently of any model call. ``candidate_lines`` are the
+    pre-formatted ``"- <id>: <name>"`` catalog entries the model may choose from.
+    """
+    user = (
+        "Member context:\n"
+        + "\n".join(context_lines)
+        + "\n\nSafe candidate exercises (choose only from these):\n"
+        + "\n".join(candidate_lines)
+        + "\n\nDesign a workout for this member as JSON."
+    )
+    return [
+        {"role": "system", "content": _SYSTEM_PROMPT},
+        {"role": "user", "content": user},
+    ]
 
 
 class PlannedExercise(BaseModel):
@@ -150,28 +184,11 @@ def _prompt_node(state: _WorkoutState) -> _WorkoutState:
     context_lines = state["bundle"].context_items or state["bundle"].subgraph_facts
     catalog_lines = [f"- {c['id']}: {c['name']}" for c in candidates]
 
-    system = (
-        "You are a certified strength coach who designs safe, personalized workouts. "
-        "You may only prescribe exercises drawn from the provided safe candidate list; "
-        "never invent exercises or use any not listed. Return ONLY a JSON object of the form "
-        '{"summary": str, "exercises": [{"exercise_id": str, "name": str, "sets": int, '
-        '"reps": int, "notes": str (optional)}]}.'
-    )
-    user = (
-        "Member context:\n"
-        + "\n".join(context_lines)
-        + "\n\nSafe candidate exercises (choose only from these):\n"
-        + "\n".join(catalog_lines)
-        + "\n\nDesign a workout for this member as JSON."
-    )
-    messages: list[dict[str, str]] = [
-        {"role": "system", "content": system},
-        {"role": "user", "content": user},
-    ]
+    messages = build_workout_messages(context_lines, catalog_lines)
     # Ask providers that support it (e.g. OpenAI) for a strict JSON object; providers that
     # ignore unknown kwargs (or the test fake) are unaffected. The parser still tolerates
     # fenced/prose output as a fallback.
-    completion = state["provider"].chat(messages, response_format={"type": "json_object"})
+    completion = state["provider"].chat(messages, response_format=budget.RESPONSE_FORMAT)
     return {"messages": messages, "completion": completion}
 
 

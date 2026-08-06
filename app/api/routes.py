@@ -19,7 +19,8 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.api import schemas
 from app.api.deps import get_llm_provider, get_neo4j_client
-from app.generation import chat, insight, workout
+from app.config import get_settings
+from app.generation import budget, chat, insight, workout
 from app.generation.chat import ChatAnswer
 from app.generation.insight import InsightReport
 from app.generation.workout import WorkoutPlan
@@ -150,9 +151,11 @@ def retrieve(
     provider: ProviderDep,
 ) -> ContextBundle:
     """Return a fused GraphRAG context bundle for the request's member and query."""
-    kwargs: dict[str, Any] = {}
-    if req.token_budget is not None:
-        kwargs["token_budget"] = req.token_budget
+    # Resolve the context token budget: the request's explicit value when given, else the
+    # environment-configured default (CONTEXT_TOKEN_BUDGET). See docs/token_budget.md.
+    kwargs: dict[str, Any] = {
+        "token_budget": budget.resolve_budget(req.token_budget, get_settings()),
+    }
     if req.k is not None:
         kwargs["k"] = req.k
     return service.retrieve(client, provider, req.member_id, req.query, **kwargs)
