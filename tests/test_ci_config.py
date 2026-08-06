@@ -104,4 +104,6 @@ def test_llm_mocked_and_no_live_secret_in_repo():
     raw = CI_FILE.read_text()
     # Reject anything that looks like a real key literal; a test placeholder must be obvious.
     for token in ("sk-proj-", "sk-svcacct-"):
-        assert token not in raw, f"a live-looking OpenAI key ({token}...) is committed in {CI_FILE.name}"
+        assert token not in raw, (
+            f"a live-looking OpenAI key ({token}...) is committed in {CI_FILE.name}"
+        )

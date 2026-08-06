@@ -1,0 +1,80 @@
+# CI for the Knowledge Graph Coaching Platform.
+#
+# The remote is GitLab, so CI runs here (not GitHub Actions). Two jobs run in
+# parallel in the `test` stage:
+#   * backend  — ruff + mypy + the FULL pytest suite, backed by a real Neo4j
+#                service so the integration tests RUN instead of skipping.
+#   * frontend — jest + `tsc --noEmit`.
+# The LLM is faked in tests (dummy OPENAI_API_KEY); no live secret is in this repo.
+#
+# NOTE: this needs a Docker-executor runner (for `services:`). On a shell-only
+# runner the Neo4j service won't start; use a runner with the docker executor.
+
+stages:
+  - test
+
+backend:
+  stage: test
+  image: python:3.14
+  services:
+    - name: neo4j:5.26
+      alias: neo4j
+  variables:
+    # Passed into the Neo4j service container to set its single-user credentials.
+    NEO4J_AUTH: "neo4j/testpassword"
+    # Consumed by the test suite (conftest only fills these if unset).
+    NEO4J_URI: "bolt://neo4j:7687"
+    NEO4J_USER: "neo4j"
+    NEO4J_PASSWORD: "testpassword"
+    LLM_PROVIDER: "openai"
+    # Dummy — the tests use a deterministic fake provider and never call OpenAI.
+    OPENAI_API_KEY: "sk-test-not-real"
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  cache:
+    key: "pip-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .cache/pip
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install -e ".[dev]"
+    # Wait for the Neo4j service to accept Bolt before running the suite, so the
+    # integration tests exercise the DB rather than hitting their skip fallback.
+    - |
+      python - <<'PY'
+      import time
+      from neo4j import GraphDatabase
+      from neo4j.exceptions import Neo4jError
+      uri, user, pw = "bolt://neo4j:7687", "neo4j", "testpassword"
+      for attempt in range(60):
+          try:
+              drv = GraphDatabase.driver(uri, auth=(user, pw))
+              drv.verify_connectivity()
+              with drv.session() as s:
+                  s.run("RETURN 1").consume()
+              drv.close()
+              print(f"Neo4j ready after {attempt * 2}s")
+              break
+          except (Exception, Neo4jError) as exc:  # noqa: BLE001
+              print(f"waiting for Neo4j ({attempt}): {exc}")
+              time.sleep(2)
+      else:
+          raise SystemExit("Neo4j did not become ready in time")
+      PY
+  script:
+    - ruff check .
+    - mypy app
+    - pytest -q
+
+frontend:
+  stage: test
+  image: node:20
+  cache:
+    key: "npm-$CI_COMMIT_REF_SLUG"
+    paths:
+      - frontend/node_modules
+  before_script:
+    - cd frontend
+    - npm ci
+  script:
+    - npm test -- --watchAll=false
+    - npx tsc --noEmit

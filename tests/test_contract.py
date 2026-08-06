@@ -139,7 +139,7 @@ def test_interface_matches_backend_schema(interface, ts_interfaces, openapi_sche
     if mode == "exact":
         extra_on_backend = api_fields - ts_fields
         assert not extra_on_backend, (
-            f"{interface} → {component}: API sends field(s) {sorted(extra_on_backend)} the frontend "
-            f"type does not declare. Add them to types.ts, or mark the mapping 'subset' if the "
-            f"frontend intentionally ignores them."
+            f"{interface} → {component}: API sends field(s) {sorted(extra_on_backend)} the "
+            f"frontend type does not declare. Add them to types.ts, or mark the mapping "
+            f"'subset' if the frontend intentionally ignores them."
         )
