@@ -36,3 +36,6 @@ coverage/
 
 next-env.d.ts
 .coverage
+
+# Generated eval report artifacts
+evals/reports/
