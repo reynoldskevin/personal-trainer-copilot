@@ -123,6 +123,9 @@ def test_workout_benchmark_meets_p95_budget(client):
     assert report.end_to_end.p95_ms >= report.end_to_end.p50_ms
     # ...and within the budget (excluding provider latency, which is stubbed to ~0).
     assert report.end_to_end.p95_ms < perf.DEFAULT_P95_BUDGET_MS
-    # Retrieval overhead is reported separately and is a component of the end-to-end time.
+    # Retrieval overhead is reported separately (timed on its own calls, so its samples are
+    # independent of the end-to-end samples — a cold first call can spike either set). It only has
+    # to be a well-formed, in-budget stat, not ordered against the end-to-end p95.
     assert report.retrieval.count == 15
-    assert report.retrieval.p95_ms <= report.end_to_end.p95_ms + 1.0
+    assert report.retrieval.p95_ms >= report.retrieval.p50_ms >= 0.0
+    assert report.retrieval.p95_ms < perf.DEFAULT_P95_BUDGET_MS
