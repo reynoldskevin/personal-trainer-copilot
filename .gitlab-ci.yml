@@ -89,11 +89,34 @@ backend:
 frontend:
   stage: test
   image: node:20
-  # No node_modules cache: `npm ci` does a clean install from the lockfile, and a
-  # restored partial node_modules cache corrupts it (ENOENT during install).
+  # `npm ci` on this runner intermittently corrupts its OWN extraction: an
+  # `npm warn tar TAR_ENTRY_ERROR ENOENT` flood leaves node_modules incomplete
+  # (e.g. the `jest` binary missing) YET `npm ci` still exits 0 — so the next step
+  # dies with `jest: not found` (exit 127). Trusting npm's exit code is therefore
+  # not enough. We instead VERIFY the installed binaries actually exist and, on a
+  # partial install, reinstall from a clean tree + cache so a transient extraction
+  # fault self-heals rather than needing a manual pipeline retry. (No node_modules
+  # cache either: a restored partial cache is another source of the same corruption.)
   before_script:
     - cd frontend
-    - npm ci
+    - |
+      install_ok=0
+      for attempt in 1 2 3; do
+        echo "npm ci (attempt $attempt)"
+        rm -rf node_modules
+        npm ci --no-audit --no-fund || true
+        if [ -x node_modules/.bin/jest ] && [ -x node_modules/.bin/tsc ]; then
+          install_ok=1
+          break
+        fi
+        echo "node_modules incomplete after attempt $attempt (jest/tsc binary missing); cleaning cache and retrying"
+        npm cache clean --force || true
+        sleep 5
+      done
+      if [ "$install_ok" != "1" ]; then
+        echo "frontend dependencies failed to install cleanly after 3 attempts"
+        exit 1
+      fi
   script:
     - npm test -- --watchAll=false
     - npx tsc --noEmit
