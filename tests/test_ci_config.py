@@ -111,6 +111,17 @@ def test_frontend_install_is_resilient_to_partial_npm_ci():
     )
 
 
+def test_checkout_is_robust_to_leftover_node_modules():
+    """The shared runner reuses its workspace; `git clean -ffdx` intermittently fails to remove a
+    leftover `frontend/node_modules` ("Directory not empty"), failing the CHECKOUT before any
+    script runs. A fresh-clone strategy (and/or source retries) makes checkout robust to that."""
+    blob = _flatten(_load())
+    assert "GIT_STRATEGY: clone" in blob or "GET_SOURCES_ATTEMPTS" in blob, (
+        "pipeline must use a robust source strategy (fresh clone / source retries) so a leftover "
+        "node_modules in the reused runner workspace cannot fail the checkout"
+    )
+
+
 def test_llm_mocked_and_no_live_secret_in_repo():
     """Tests use a fake LLM; the pipeline must NOT embed a real OpenAI key.
 
