@@ -13,6 +13,15 @@
 stages:
   - test
 
+variables:
+  # Start every job from a fresh clone instead of fetch + `git clean -ffdx`. On this shared
+  # runner the reused workspace keeps a large `frontend/node_modules` tree, and git clean
+  # intermittently fails to remove it ("Directory not empty"), which fails the CHECKOUT before
+  # any script runs. `clone` (rm -rf + clone) sidesteps that git-clean race; GET_SOURCES_ATTEMPTS
+  # retries the source step if it still hiccups. This is what stops the runner-workspace flakiness.
+  GIT_STRATEGY: clone
+  GET_SOURCES_ATTEMPTS: "3"
+
 backend:
   stage: test
   image: python:3.14
