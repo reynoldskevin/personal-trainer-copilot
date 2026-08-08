@@ -63,6 +63,40 @@ def _plan_json(exercise_ids: list[str]) -> str:
 
 # ----------------------- pure-data (no Neo4j) -----------------------
 
+def test_target_exercise_range_constants_are_sane():
+    # Ticket 027: a fuller session than the model's compact default of ~3.
+    lo, hi = workout.TARGET_EXERCISE_MIN, workout.TARGET_EXERCISE_MAX
+    assert isinstance(lo, int) and isinstance(hi, int)
+    assert lo < hi, "range must be non-empty (min strictly below max)"
+    assert hi >= 5, "target session should reach at least ~5 exercises, not stay at 3"
+
+
+def test_system_prompt_requests_the_target_range_and_pattern_coverage():
+    # The prompt is the only lever on count (the model's output can't be unit-tested), so it must
+    # carry both bounds of the target range and ask for balanced movement-pattern coverage.
+    prompt = workout._SYSTEM_PROMPT
+    assert str(workout.TARGET_EXERCISE_MIN) in prompt
+    assert str(workout.TARGET_EXERCISE_MAX) in prompt
+    low = prompt.lower()
+    assert "pattern" in low, "prompt should ask for balanced movement-pattern coverage"
+    # Only ever from the safe candidate list, and degrade gracefully when too few exist.
+    assert "candidate" in low
+    assert "fewer" in low or "as many" in low or "too few" in low, (
+        "prompt must permit degrading to fewer exercises when safe candidates are scarce"
+    )
+    # Output contract is unchanged: still a JSON object.
+    assert "json" in low
+
+
+def test_build_workout_messages_carries_the_target_instruction():
+    messages = workout.build_workout_messages(["Member: Ava."], ["- push_up: Push-up"])
+    system = messages[0]["content"]
+    assert messages[0]["role"] == "system"
+    # The assembled system turn carries the target-range instruction, not just the bare schema.
+    assert str(workout.TARGET_EXERCISE_MAX) in system
+    assert "pattern" in system.lower()
+
+
 def test_models_are_pydantic():
     plan = workout.WorkoutPlan(
         member_id="m",
