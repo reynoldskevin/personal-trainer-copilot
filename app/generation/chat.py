@@ -13,9 +13,15 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 from app.graph.client import Neo4jClient
+from app.ingestion import ontology
 from app.llm.provider import LLMProvider
 from app.observability import tracing
 from app.retrieval import service
+
+# Exercise id -> display name, so contraindications render with the SAME names the workout history
+# uses (the retrieval facts render `e.name`), not raw ids — the model then reasons over one
+# consistent spelling of each exercise instead of two.
+_EXERCISE_NAMES: dict[str, str] = {e["id"]: e["name"] for e in ontology.EXERCISES}
 
 # Reuse the retrieval service's defaults so chat and retrieval stay in lockstep.
 DEFAULT_TOKEN_BUDGET: int = service.DEFAULT_TOKEN_BUDGET
@@ -40,11 +46,15 @@ class ChatAnswer(BaseModel):
 
 _SYSTEM_PROMPT: str = (
     "You are an assistant that helps a professional fitness coach understand one of their "
-    "members. Answer the coach's question about the member using ONLY the member context "
-    "provided below; if the context does not contain the answer, say so plainly and never "
-    "invent facts. You are speaking to the coach, not to the member. Do NOT draft a "
-    "client-facing or member-facing message, and never write a reply addressed to the client "
-    "or member — respond directly to the coach as a colleague."
+    "members. Answer the coach's question about the member using the member context provided "
+    "below. You MAY draw well-supported inferences from that context — the member's injuries, "
+    "their contraindicated exercises, and their workout history — rather than only restating "
+    "explicit facts (for example, a movement that is NOT in the contraindication list and is "
+    "lighter than something the member already performs can be judged safe). But never invent "
+    "unsupported facts, and never contradict the member's contraindication list; if nothing in "
+    "the context supports an answer, say so plainly. You are speaking to the coach, not to the "
+    "member. Do NOT draft a client-facing or member-facing message, and never write a reply "
+    "addressed to the client or member — respond directly to the coach as a colleague."
 )
 
 
@@ -74,12 +84,28 @@ def answer_question(
         )
 
         context_lines = bundle.context_items or bundle.subgraph_facts
+        # Surface the member's contraindication set explicitly so the model can reason about
+        # safety (what is forbidden vs. merely absent) instead of hedging on every movement.
+        if bundle.contraindications:
+            contra_names = [_EXERCISE_NAMES.get(ex, ex) for ex in bundle.contraindications]
+            contra_line = (
+                "Exercises contraindicated for this member's injuries (never recommend these): "
+                + ", ".join(contra_names)
+            )
+        else:
+            contra_line = (
+                "Exercises contraindicated for this member's injuries: none on record."
+            )
         user = (
             "Member context:\n"
             + "\n".join(context_lines)
+            + "\n\n"
+            + contra_line
             + "\n\nThe coach asks: "
             + message
-            + "\n\nAnswer the coach's question grounded only in the member context above."
+            + "\n\nAnswer the coach's question, grounded in the member context above. You may draw "
+            "well-supported inferences from the member's history and contraindication list; only "
+            "say information is unavailable when no fact in the context supports an answer."
         )
         messages: list[dict[str, str]] = [
             {"role": "system", "content": _SYSTEM_PROMPT},
