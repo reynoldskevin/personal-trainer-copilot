@@ -65,8 +65,7 @@ class _StreamingProvider(LLMProvider):
 
     def chat_stream(self, messages: list[dict[str, str]], **kwargs: object):
         self.last_messages = messages
-        for chunk in self.chunks:
-            yield chunk
+        yield from self.chunks
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         return [_embed_text(t) for t in texts]
@@ -137,9 +136,11 @@ def test_stream_emits_context_then_tokens_then_done(client):
 
 def test_streamed_prompt_matches_nonstream_safety_and_grounding(client):
     # The streamed path must ground/guard identically to POST /chat: contraindications surfaced,
-    # inference-permitting system prompt. Ava (rotator-cuff) => overhead/bench press contraindicated.
+    # inference-permitting system prompt. Ava (rotator-cuff) => overhead/bench press are
+    # contraindicated.
     provider = _StreamingProvider()
-    list(chat.answer_question_stream(client, provider, "member_ava", "Can Ava do a bodyweight squat?"))
+    q = "Can Ava do a bodyweight squat?"
+    list(chat.answer_question_stream(client, provider, "member_ava", q))
     assert provider.last_messages is not None
     blob = json.dumps(provider.last_messages).lower()
     assert "contraindicat" in blob
