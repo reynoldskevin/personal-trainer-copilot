@@ -48,10 +48,21 @@ PROMPT_VERSION: str = "workout-v1"
 # the full safe-candidate catalog). Guards against prompt-assembly bloat; see docs/token_budget.md.
 WORKOUT_PROMPT_TOKEN_BUDGET: int = 3000
 
+# Target size for a generated session. gpt-4o-mini left unguided tends to return a compact
+# ~3-exercise plan; this range steers it toward a fuller, better-rounded workout.
+TARGET_EXERCISE_MIN: int = 5
+TARGET_EXERCISE_MAX: int = 7
+
 _SYSTEM_PROMPT: str = (
     "You are a certified strength coach who designs safe, personalized workouts. "
     "You may only prescribe exercises drawn from the provided safe candidate list; "
-    "never invent exercises or use any not listed. Return ONLY a JSON object of the form "
+    "never invent exercises or use any not listed. "
+    f"Aim for a full session of {TARGET_EXERCISE_MIN} to {TARGET_EXERCISE_MAX} exercises, "
+    "chosen for balanced movement-pattern coverage (e.g. push, pull, hinge, squat, and core) "
+    "rather than clustering on one pattern. Prescribe only from the safe candidate list; when "
+    "too few safe candidates exist to reach the target, include as many as are available rather "
+    "than inventing exercises. "
+    "Return ONLY a JSON object of the form "
     '{"summary": str, "exercises": [{"exercise_id": str, "name": str, "sets": int, '
     '"reps": int, "notes": str (optional)}]}.'
 )
