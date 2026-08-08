@@ -7,7 +7,7 @@ retried with a fixed backoff; non-transient errors propagate immediately.
 from __future__ import annotations
 
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from typing import Any, TypeVar
 
 import openai
@@ -72,6 +72,21 @@ class OpenAIProvider(LLMProvider):
             return content
 
         return self._with_retries(_call)
+
+    def chat_stream(
+        self, messages: list[dict[str, str]], **kwargs: object
+    ) -> Iterator[str]:
+        # Retry only the stream ESTABLISHMENT (transient connect/timeout/rate-limit); once tokens
+        # start flowing a mid-stream failure propagates rather than silently restarting the reply.
+        stream = self._with_retries(
+            lambda: self._client.chat.completions.create(
+                model=self.chat_model, messages=messages, stream=True, **kwargs
+            )
+        )
+        for chunk in stream:
+            delta = chunk.choices[0].delta.content
+            if delta:
+                yield delta
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         def _call() -> list[list[float]]:

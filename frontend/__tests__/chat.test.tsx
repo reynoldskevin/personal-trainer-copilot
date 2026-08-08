@@ -25,15 +25,41 @@ const AVA_DETAIL = {
   adherence: [{ timestamp: '2026-01-27T20:00:00+00:00', planned: 4, completed: 4 }],
 };
 
-const AVA_CHAT = {
-  member_id: 'member_ava',
-  message: 'How is her shoulder tracking?',
-  answer: 'Ava is rehabbing her rotator cuff and her adherence has been steady.',
-  context_used: ['Active injury: Rotator cuff injury.', 'Goal: Rehab right shoulder.'],
-};
+// The chat answer arrives as an SSE stream: a context event, several token deltas that
+// concatenate to the full answer, then a done event.
+const AVA_STREAM = [
+  `data: ${JSON.stringify({
+    type: 'context',
+    member_id: 'member_ava',
+    message: 'How is her shoulder tracking?',
+    context_used: ['Active injury: Rotator cuff injury.', 'Goal: Rehab right shoulder.'],
+  })}\n\n`,
+  `data: ${JSON.stringify({ type: 'token', delta: 'Ava is ' })}\n\n`,
+  `data: ${JSON.stringify({ type: 'token', delta: 'rehabbing her rotator cuff.' })}\n\n`,
+  `data: ${JSON.stringify({ type: 'done', answer: 'Ava is rehabbing her rotator cuff.' })}\n\n`,
+];
 
 function jsonResponse(body: unknown) {
   return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) } as Response);
+}
+
+// A Response whose body streams the given string chunks (one per reader.read()), like SSE.
+function sseResponse(chunks: string[]) {
+  const encoder = new TextEncoder();
+  let i = 0;
+  const body = {
+    getReader() {
+      return {
+        read() {
+          if (i < chunks.length) {
+            return Promise.resolve({ done: false, value: encoder.encode(chunks[i++]) });
+          }
+          return Promise.resolve({ done: true, value: undefined });
+        },
+      };
+    },
+  };
+  return Promise.resolve({ ok: true, status: 200, body } as unknown as Response);
 }
 
 function installFetch(overrides: Partial<Record<string, () => Promise<Response>>> = {}) {
@@ -42,7 +68,7 @@ function installFetch(overrides: Partial<Record<string, () => Promise<Response>>
     const method = (init?.method || 'GET').toUpperCase();
     if (url.endsWith('/members') && method === 'GET') return (overrides.members ?? (() => jsonResponse(MEMBERS)))();
     if (/\/members\/[^/]+$/.test(url) && method === 'GET') return (overrides.detail ?? (() => jsonResponse(AVA_DETAIL)))();
-    if (url.endsWith('/chat')) return (overrides.chat ?? (() => jsonResponse(AVA_CHAT)))();
+    if (url.endsWith('/chat/stream')) return (overrides.chatStream ?? (() => sseResponse(AVA_STREAM)))();
     return Promise.reject(new Error(`unexpected fetch: ${method} ${url}`));
   });
   (global as unknown as { fetch: typeof fn }).fetch = fn;
@@ -88,7 +114,7 @@ test('the composer is context-only: it asks ABOUT the member, not a client-facin
   expect(composerText).not.toMatch(/draft (a )?(reply|message|response) (to|for) (the )?(client|member)/);
 });
 
-test('sending a question posts to /chat and renders the grounded answer', async () => {
+test('sending a question streams from /chat/stream and assembles the grounded answer', async () => {
   const fetchMock = installFetch();
   const user = await openChat();
 
@@ -96,22 +122,24 @@ test('sending a question posts to /chat and renders the grounded answer', async 
   await user.type(within(composer).getByRole('textbox'), 'How is her shoulder tracking?');
   await user.click(within(composer).getByRole('button', { name: /send|ask/i }));
 
-  // The grounded answer appears in the thread.
+  // The answer, assembled from the streamed token deltas, appears in the thread. The matched
+  // text spans TWO separate token events, so it only renders if the SSE stream was consumed and
+  // accumulated correctly.
   await waitFor(() =>
-    expect(screen.getByText(/rehabbing her rotator cuff/i)).toBeInTheDocument()
+    expect(screen.getByText(/Ava is rehabbing her rotator cuff\./i)).toBeInTheDocument()
   );
   const thread = document.querySelector('[data-region="chat-thread"]') as HTMLElement;
-  expect(within(thread).getByText(/rehabbing her rotator cuff/i)).toBeInTheDocument();
+  expect(within(thread).getByText(/Ava is rehabbing her rotator cuff\./i)).toBeInTheDocument();
   expect(document.querySelectorAll('[data-component="ChatMessage"]').length).toBeGreaterThanOrEqual(1);
 
-  // The /chat call carried the member id and the coach's message.
-  const chatCall = fetchMock.mock.calls.find(([u]) => String(u).endsWith('/chat'));
+  // The call went to the STREAMING endpoint and carried the member id and the coach's message.
+  const chatCall = fetchMock.mock.calls.find(([u]) => String(u).endsWith('/chat/stream'));
   expect(chatCall).toBeTruthy();
   const body = JSON.parse(String((chatCall?.[1] as RequestInit).body));
   expect(body.member_id).toBe('member_ava');
   expect(body.message).toMatch(/shoulder/i);
 
-  // The context the answer used is surfaced as supporting context.
+  // The context surfaced by the stream's context event is shown as supporting context.
   expect(document.querySelector('[data-region="chat-supporting-context"]')).toBeInTheDocument();
   expect(document.querySelector('[data-component="SupportingContextPanel"]')).toBeInTheDocument();
 });
