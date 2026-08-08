@@ -758,7 +758,7 @@ function WorkoutTab({
       )}
       {bundle && (
         <div data-region="workout-supporting-context">
-          <SupportingContextPanel bundle={bundle} />
+          <SupportingContextPanel bundle={bundle} defaultOpen={false} />
         </div>
       )}
     </div>
