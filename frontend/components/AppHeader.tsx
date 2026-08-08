@@ -9,11 +9,9 @@ export default function AppHeader() {
             background: 'var(--color-accent)',
             color: 'var(--color-accent-fg)',
           }}
-        >
-          KG
-        </div>
+        />
         <div>
-          <h2 className="kg-h2">Coaching Graph</h2>
+          <h2 className="kg-h2">AI Coaching Assistant</h2>
           <p className="kg-mono">members</p>
         </div>
       </div>
