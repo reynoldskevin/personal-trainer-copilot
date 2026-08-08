@@ -126,6 +126,11 @@ test('members-list screen renders its contract regions and components', async ()
 
   expect(document.querySelector('[data-region="app-header"]')).toBeInTheDocument();
   expect(document.querySelector('[data-component="AppHeader"]')).toBeInTheDocument();
+  // Header branding: "AI Coaching Assistant", no "Coaching Graph", and an empty logo holder (no "KG").
+  const header = document.querySelector('[data-component="AppHeader"]') as HTMLElement;
+  expect(within(header).getByText('AI Coaching Assistant')).toBeInTheDocument();
+  expect(within(header).queryByText('Coaching Graph')).not.toBeInTheDocument();
+  expect(within(header).queryByText('KG')).not.toBeInTheDocument();
   expect(document.querySelector('[data-region="list-toolbar"]')).toBeInTheDocument();
   expect(document.querySelector('[data-component="SearchBar"]')).toBeInTheDocument();
   expect(document.querySelector('[data-region="members-list"]')).toBeInTheDocument();
