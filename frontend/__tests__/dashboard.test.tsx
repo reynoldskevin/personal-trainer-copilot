@@ -279,6 +279,36 @@ test('the default workout focus is sent as the query when unchanged', async () =
   expect(lastGenerateBody(fetchFn)).toMatchObject({ member_id: 'member_ava', query: 'shoulder-safe upper body' });
 });
 
+test('the workout supporting context is collapsed by default and toggles open/closed', async () => {
+  installFetch();
+  const user = await openWorkoutTab();
+
+  await user.click(screen.getByRole('button', { name: /Generate/i }));
+
+  const region = (await waitFor(() => {
+    const r = document.querySelector('[data-region="workout-supporting-context"]');
+    expect(r).toBeInTheDocument();
+    return r;
+  })) as HTMLElement;
+
+  // The panel/header is present, but the retrieved source rows are hidden by default.
+  expect(region.querySelector('[data-component="SupportingContextPanel"]')).toBeInTheDocument();
+  expect(within(region).queryByText('Active injury: Rotator cuff injury.')).not.toBeInTheDocument();
+
+  const toggle = within(region).getByRole('button', { name: /supporting context/i });
+  expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+  // Expanding reveals the source rows...
+  await user.click(toggle);
+  expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  expect(within(region).getAllByText('Active injury: Rotator cuff injury.').length).toBeGreaterThan(0);
+
+  // ...and collapsing hides them again.
+  await user.click(toggle);
+  expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  expect(within(region).queryByText('Active injury: Rotator cuff injury.')).not.toBeInTheDocument();
+});
+
 test('a failed members load shows an error state', async () => {
   installFetch({ members: () => Promise.reject(new Error('boom')) });
   render(<Dashboard />);

@@ -140,6 +140,10 @@ test('sending a question streams from /chat/stream and assembles the grounded an
   expect(body.message).toMatch(/shoulder/i);
 
   // The context surfaced by the stream's context event is shown as supporting context.
-  expect(document.querySelector('[data-region="chat-supporting-context"]')).toBeInTheDocument();
-  expect(document.querySelector('[data-component="SupportingContextPanel"]')).toBeInTheDocument();
+  const contextRegion = document.querySelector('[data-region="chat-supporting-context"]') as HTMLElement;
+  expect(contextRegion).toBeInTheDocument();
+  expect(contextRegion.querySelector('[data-component="SupportingContextPanel"]')).toBeInTheDocument();
+  // Chat keeps the panel expanded by default (defaultOpen): the retrieved sources are visible
+  // without any interaction.
+  expect(within(contextRegion).getByText('Goal: Rehab right shoulder.')).toBeInTheDocument();
 });
