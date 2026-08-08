@@ -247,26 +247,27 @@ test('the workout focus input is editable', async () => {
   expect(focus).toHaveValue('lower body power');
 });
 
-test('clicking a quick-hint chip sets the workout focus', async () => {
+test('the quick-hint chips are not rendered', async () => {
   installFetch();
-  const user = await openWorkoutTab();
+  await openWorkoutTab();
 
-  await user.click(screen.getByRole('button', { name: 'Upper push' }));
-  expect(screen.getByLabelText(/Workout focus/i)).toHaveValue('Upper push');
-
-  await user.click(screen.getByRole('button', { name: 'Deload week' }));
-  expect(screen.getByLabelText(/Workout focus/i)).toHaveValue('Deload week');
+  expect(screen.queryByText(/quick hints/i)).not.toBeInTheDocument();
+  for (const label of ['Return to run', 'Upper push', 'Deload week']) {
+    expect(screen.queryByRole('button', { name: label })).not.toBeInTheDocument();
+  }
 });
 
-test('generating a workout sends the chosen focus as the request query', async () => {
+test('generating a workout sends the typed focus as the request query', async () => {
   const fetchFn = installFetch();
   const user = await openWorkoutTab();
 
-  await user.click(screen.getByRole('button', { name: 'Return to run' }));
+  const focus = screen.getByLabelText(/Workout focus/i);
+  await user.clear(focus);
+  await user.type(focus, 'return to running');
   await user.click(screen.getByRole('button', { name: /Generate/i }));
 
   await waitFor(() => expect(document.querySelector('[data-component="WorkoutPlanCard"]')).toBeInTheDocument());
-  expect(lastGenerateBody(fetchFn)).toMatchObject({ member_id: 'member_ava', query: 'Return to run' });
+  expect(lastGenerateBody(fetchFn)).toMatchObject({ member_id: 'member_ava', query: 'return to running' });
 });
 
 test('the default workout focus is sent as the query when unchanged', async () => {
