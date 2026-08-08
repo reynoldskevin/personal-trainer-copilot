@@ -11,6 +11,9 @@ const nextConfig = {
       { source: '/members/:id', destination: `${api}/members/:id` },
       { source: '/retrieve', destination: `${api}/retrieve` },
       { source: '/generate/:path*', destination: `${api}/generate/:path*` },
+      // `/chat/stream` (SSE) must be listed BEFORE `/chat` — the dashboard streams the chat
+      // answer from it, and without this rewrite it 404s at the frontend origin in production.
+      { source: '/chat/stream', destination: `${api}/chat/stream` },
       { source: '/chat', destination: `${api}/chat` },
     ];
   },
