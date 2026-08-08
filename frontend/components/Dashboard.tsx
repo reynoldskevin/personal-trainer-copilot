@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type {
-  ChatAnswer,
   ChatTurn,
   InsightReport,
   Member,
@@ -174,29 +173,75 @@ export default function Dashboard() {
     };
   }, [activeTab, selectedId, insight]);
 
+  // Grow the trailing assistant turn as tokens stream in (it is always the last turn during a send).
+  function setStreamingAssistantText(text: string) {
+    setChatTurns((turns) => {
+      const copy = turns.slice();
+      const last = copy[copy.length - 1];
+      if (last && last.role === 'assistant') {
+        copy[copy.length - 1] = { ...last, text };
+      }
+      return copy;
+    });
+  }
+
   async function sendChat(message: string) {
     if (!selectedId) return;
     const memberId = selectedId;
     const optimistic: ChatTurn = { role: 'coach', text: message };
     setChatSending(true);
     setChatError(null);
-    setChatTurns((turns) => [...turns, optimistic]);
+    // Add the coach's turn plus an empty assistant turn we grow as SSE tokens arrive.
+    setChatTurns((turns) => [...turns, optimistic, { role: 'assistant', text: '' }]);
     try {
-      const answer = await getJson<ChatAnswer>(`${API_BASE}/chat`, {
+      const res = await fetch(`${API_BASE}/chat/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ member_id: memberId, message }),
       });
-      setChatTurns((turns) => [...turns, { role: 'assistant', text: answer.answer }]);
-      setChatContext(answer.context_used);
+      if (!res.ok || !res.body) {
+        throw new Error(`Request failed: /chat/stream (${res.status})`);
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let answer = '';
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        // SSE events are separated by a blank line; process every complete one.
+        let sep: number;
+        while ((sep = buffer.indexOf('\n\n')) !== -1) {
+          const chunk = buffer.slice(0, sep);
+          buffer = buffer.slice(sep + 2);
+          for (const line of chunk.split('\n')) {
+            if (!line.startsWith('data:')) continue;
+            const event = JSON.parse(line.slice(5).trim());
+            if (event.type === 'context') {
+              setChatContext(event.context_used);
+            } else if (event.type === 'token') {
+              answer += event.delta;
+              setStreamingAssistantText(answer);
+            } else if (event.type === 'done') {
+              answer = event.answer;
+              setStreamingAssistantText(answer);
+            }
+          }
+        }
+      }
     } catch {
-      // Roll back the dangling optimistic turn and surface an error affordance,
-      // mirroring generateWorkout — never swallow the failure silently.
+      // Roll back the streaming assistant placeholder and the optimistic coach turn, and surface
+      // an error affordance — never swallow the failure silently.
       setChatTurns((turns) => {
-        const idx = turns.lastIndexOf(optimistic);
-        if (idx === -1) return turns;
-        return [...turns.slice(0, idx), ...turns.slice(idx + 1)];
+        const copy = turns.slice();
+        if (copy.length && copy[copy.length - 1].role === 'assistant') copy.pop();
+        const idx = copy.lastIndexOf(optimistic);
+        if (idx !== -1) copy.splice(idx, 1);
+        return copy;
       });
+      // Don't leave the supporting-context panel populated for the rolled-back exchange.
+      setChatContext(null);
       setChatError('Failed to send message. Please try again.');
     } finally {
       setChatSending(false);

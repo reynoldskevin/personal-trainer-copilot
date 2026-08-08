@@ -13,9 +13,11 @@ query data, never string-interpolated).
 """
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 
 from app.api import schemas
 from app.api.deps import get_llm_provider, get_neo4j_client
@@ -181,6 +183,29 @@ def chat_answer(
 ) -> ChatAnswer:
     """Answer the coach's question about the request's member, grounded in member context."""
     return chat.answer_question(client, provider, req.member_id, req.message)
+
+
+@router.post("/chat/stream")
+def chat_answer_stream(
+    req: schemas.ChatRequest,
+    client: ClientDep,
+    provider: ProviderDep,
+) -> StreamingResponse:
+    """Stream the grounded chat answer as Server-Sent Events (context -> tokens -> done).
+
+    Same grounding/safety as ``POST /chat`` (identical prompt); the answer is emitted incrementally
+    so the coach sees it form. Each event is a ``data: <json>\\n\\n`` line carrying a typed
+    ``ChatContextEvent`` / ``ChatTokenEvent`` / ``ChatDoneEvent``.
+    """
+    def event_stream() -> Iterator[str]:
+        for event in chat.answer_question_stream(client, provider, req.member_id, req.message):
+            yield f"data: {event.model_dump_json()}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post("/generate/insight", response_model=InsightReport)
