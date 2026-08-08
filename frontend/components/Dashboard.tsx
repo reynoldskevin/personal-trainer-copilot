@@ -54,6 +54,7 @@ export default function Dashboard() {
   const [bundle, setBundle] = useState<RetrievalBundle | null>(null);
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [focus, setFocus] = useState('shoulder-safe upper body');
 
   const [insight, setInsight] = useState<InsightReport | null>(null);
   const [insightBundle, setInsightBundle] = useState<RetrievalBundle | null>(null);
@@ -120,7 +121,7 @@ export default function Dashboard() {
         getJson<WorkoutPlan>(`${API_BASE}/generate/workout`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ member_id: selectedId }),
+          body: JSON.stringify({ member_id: selectedId, query: focus }),
         }),
         getJson<RetrievalBundle>(`${API_BASE}/retrieve`, {
           method: 'POST',
@@ -310,6 +311,8 @@ export default function Dashboard() {
               generating={generating}
               generateError={generateError}
               onGenerate={generateWorkout}
+              focus={focus}
+              onFocusChange={setFocus}
               insight={insight}
               insightBundle={insightBundle}
               insightState={insightState}
@@ -336,6 +339,8 @@ interface MemberHubProps {
   generating: boolean;
   generateError: string | null;
   onGenerate: () => void;
+  focus: string;
+  onFocusChange: (focus: string) => void;
   insight: InsightReport | null;
   insightBundle: RetrievalBundle | null;
   insightState: LoadState;
@@ -356,6 +361,8 @@ function MemberHub({
   generating,
   generateError,
   onGenerate,
+  focus,
+  onFocusChange,
   insight,
   insightBundle,
   insightState,
@@ -382,6 +389,8 @@ function MemberHub({
             generating={generating}
             generateError={generateError}
             onGenerate={onGenerate}
+            focus={focus}
+            onFocusChange={onFocusChange}
           />
         )}
         {activeTab === 'Insights' && (
@@ -718,13 +727,28 @@ interface WorkoutTabProps {
   generating: boolean;
   generateError: string | null;
   onGenerate: () => void;
+  focus: string;
+  onFocusChange: (focus: string) => void;
 }
 
-function WorkoutTab({ plan, bundle, generating, generateError, onGenerate }: WorkoutTabProps) {
+function WorkoutTab({
+  plan,
+  bundle,
+  generating,
+  generateError,
+  onGenerate,
+  focus,
+  onFocusChange,
+}: WorkoutTabProps) {
   return (
     <div className="kg-stack">
       <div data-region="workout-controls">
-        <GenerateControl onGenerate={onGenerate} loading={generating} />
+        <GenerateControl
+          onGenerate={onGenerate}
+          loading={generating}
+          focus={focus}
+          onFocusChange={onFocusChange}
+        />
       </div>
       {generateError && <StatusView message={generateError} variant="error" />}
       {plan && (

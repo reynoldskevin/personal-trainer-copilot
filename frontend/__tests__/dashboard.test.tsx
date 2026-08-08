@@ -218,6 +218,67 @@ test('the Workout tab generates a plan and renders it with safety flags', async 
   expect(screen.getByText(/contraindicated/i)).toBeInTheDocument();
 });
 
+// --------------------------------------------------------------------------- ticket 026
+// The workout "quick hints" are editable + clickable, and the chosen focus is sent as `query`.
+
+/** Pull the JSON body of the LAST POST /generate/workout call out of the fetch mock. */
+function lastGenerateBody(fetchFn: jest.Mock): Record<string, unknown> {
+  const call = [...fetchFn.mock.calls]
+    .reverse()
+    .find(([input, init]) => String(input).endsWith('/generate/workout') && init?.method === 'POST');
+  if (!call) throw new Error('no POST /generate/workout call was made');
+  return JSON.parse((call[1] as RequestInit).body as string);
+}
+
+async function openWorkoutTab() {
+  const user = await selectAva();
+  await user.click(screen.getByRole('tab', { name: /Workout/ }));
+  return user;
+}
+
+test('the workout focus input is editable', async () => {
+  installFetch();
+  const user = await openWorkoutTab();
+
+  const focus = screen.getByLabelText(/Workout focus/i) as HTMLInputElement;
+  expect(focus).not.toHaveAttribute('readonly');
+  await user.clear(focus);
+  await user.type(focus, 'lower body power');
+  expect(focus).toHaveValue('lower body power');
+});
+
+test('clicking a quick-hint chip sets the workout focus', async () => {
+  installFetch();
+  const user = await openWorkoutTab();
+
+  await user.click(screen.getByRole('button', { name: 'Upper push' }));
+  expect(screen.getByLabelText(/Workout focus/i)).toHaveValue('Upper push');
+
+  await user.click(screen.getByRole('button', { name: 'Deload week' }));
+  expect(screen.getByLabelText(/Workout focus/i)).toHaveValue('Deload week');
+});
+
+test('generating a workout sends the chosen focus as the request query', async () => {
+  const fetchFn = installFetch();
+  const user = await openWorkoutTab();
+
+  await user.click(screen.getByRole('button', { name: 'Return to run' }));
+  await user.click(screen.getByRole('button', { name: /Generate/i }));
+
+  await waitFor(() => expect(document.querySelector('[data-component="WorkoutPlanCard"]')).toBeInTheDocument());
+  expect(lastGenerateBody(fetchFn)).toMatchObject({ member_id: 'member_ava', query: 'Return to run' });
+});
+
+test('the default workout focus is sent as the query when unchanged', async () => {
+  const fetchFn = installFetch();
+  const user = await openWorkoutTab();
+
+  await user.click(screen.getByRole('button', { name: /Generate/i }));
+
+  await waitFor(() => expect(document.querySelector('[data-component="WorkoutPlanCard"]')).toBeInTheDocument());
+  expect(lastGenerateBody(fetchFn)).toMatchObject({ member_id: 'member_ava', query: 'shoulder-safe upper body' });
+});
+
 test('a failed members load shows an error state', async () => {
   installFetch({ members: () => Promise.reject(new Error('boom')) });
   render(<Dashboard />);
