@@ -1,17 +1,26 @@
 interface GenerateControlProps {
+  focus: string;
+  onFocusChange: (focus: string) => void;
   onGenerate: () => void;
   loading: boolean;
 }
 
-export default function GenerateControl({ onGenerate, loading }: GenerateControlProps) {
+const QUICK_HINTS = ['Return to run', 'Upper push', 'Deload week'];
+
+export default function GenerateControl({
+  focus,
+  onFocusChange,
+  onGenerate,
+  loading,
+}: GenerateControlProps) {
   return (
     <div className="kg-card kg-card--flat" data-component="GenerateControl">
       <div className="kg-field">
         <input
           className="kg-input"
           aria-label="Workout focus"
-          defaultValue="shoulder-safe upper body"
-          readOnly
+          value={focus}
+          onChange={(e) => onFocusChange(e.target.value)}
         />
         <button
           type="button"
@@ -24,9 +33,16 @@ export default function GenerateControl({ onGenerate, loading }: GenerateControl
       </div>
       <div className="kg-row-f" style={{ marginTop: 'var(--space-md)' }}>
         <span className="kg-mono">quick hints</span>
-        <span className="kg-chip kg-chip--ghost kg-chip--sm">Return to run</span>
-        <span className="kg-chip kg-chip--ghost kg-chip--sm">Upper push</span>
-        <span className="kg-chip kg-chip--ghost kg-chip--sm">Deload week</span>
+        {QUICK_HINTS.map((hint) => (
+          <button
+            key={hint}
+            type="button"
+            className="kg-chip kg-chip--ghost kg-chip--sm"
+            onClick={() => onFocusChange(hint)}
+          >
+            {hint}
+          </button>
+        ))}
       </div>
     </div>
   );
