@@ -42,7 +42,7 @@ DEFAULT_TOKEN_BUDGET: int = service.DEFAULT_TOKEN_BUDGET
 DEFAULT_K: int = service.DEFAULT_K
 
 # Prompt version pinned onto every emitted generation trace for this pipeline.
-PROMPT_VERSION: str = "workout-v1"
+PROMPT_VERSION: str = "workout-v2"
 
 # Regression ceiling for a representative assembled workout prompt (system + a budgeted context +
 # the full safe-candidate catalog). Guards against prompt-assembly bloat; see docs/token_budget.md.
@@ -69,19 +69,33 @@ _SYSTEM_PROMPT: str = (
 
 
 def build_workout_messages(
-    context_lines: list[str], candidate_lines: list[str]
+    context_lines: list[str],
+    candidate_lines: list[str],
+    *,
+    focus: str | None = None,
 ) -> list[dict[str, str]]:
     """Assemble the workout chat ``messages`` from member context and safe candidate lines.
 
     Pure and side-effect-free so the prompt can be measured (:func:`budget.count_prompt_tokens`)
     and regression-guarded independently of any model call. ``candidate_lines`` are the
-    pre-formatted ``"- <id>: <name>"`` catalog entries the model may choose from.
+    pre-formatted ``"- <id>: <name>"`` catalog entries the model may choose from. ``focus`` is
+    the coach's session request (the dashboard's workout-focus field); when non-blank it is
+    included so the model steers the session toward it — safety still wins: only listed safe
+    candidates may be prescribed.
     """
+    focus_block = (
+        "\n\nCoach's requested focus for this session: "
+        + focus.strip()
+        + "\nHonor this focus where possible, but never prescribe outside the safe candidate list."
+        if focus and focus.strip()
+        else ""
+    )
     user = (
         "Member context:\n"
         + "\n".join(context_lines)
         + "\n\nSafe candidate exercises (choose only from these):\n"
         + "\n".join(candidate_lines)
+        + focus_block
         + "\n\nDesign a workout for this member as JSON."
     )
     return [
@@ -195,7 +209,9 @@ def _prompt_node(state: _WorkoutState) -> _WorkoutState:
     context_lines = state["bundle"].context_items or state["bundle"].subgraph_facts
     catalog_lines = [f"- {c['id']}: {c['name']}" for c in candidates]
 
-    messages = build_workout_messages(context_lines, catalog_lines)
+    # DEFAULT_QUERY is a generic retrieval seed, not a coach request — don't echo it as a focus.
+    focus = state["query"] if state["query"] != DEFAULT_QUERY else None
+    messages = build_workout_messages(context_lines, catalog_lines, focus=focus)
     # Ask providers that support it (e.g. OpenAI) for a strict JSON object; providers that
     # ignore unknown kwargs (or the test fake) are unaffected. The parser still tolerates
     # fenced/prose output as a fallback.
