@@ -97,6 +97,24 @@ def test_build_workout_messages_carries_the_target_instruction():
     assert "pattern" in system.lower()
 
 
+def test_build_workout_messages_includes_the_coach_focus():
+    messages = workout.build_workout_messages(
+        ["Member: Ava."], ["- push_up: Push-up"], focus="shoulder-safe upper body"
+    )
+    user = messages[1]["content"]
+    # The coach's focus text must reach the model verbatim so it can steer the session.
+    assert "shoulder-safe upper body" in user
+    assert "focus" in user.lower()
+
+
+def test_build_workout_messages_omits_focus_when_blank():
+    for focus in (None, "", "   "):
+        messages = workout.build_workout_messages(
+            ["Member: Ava."], ["- push_up: Push-up"], focus=focus
+        )
+        assert "focus" not in messages[1]["content"].lower()
+
+
 def test_models_are_pydantic():
     plan = workout.WorkoutPlan(
         member_id="m",
@@ -172,6 +190,15 @@ def test_prefilter_hides_contraindicated_from_the_llm(client):
     assert "push_up" in prompt, "safe candidates should be offered to the LLM"
     assert "overhead_press" not in prompt, "contraindicated exercise leaked to the LLM"
     assert "bench_press" not in prompt, "contraindicated exercise leaked to the LLM"
+
+
+def test_coach_query_steers_the_prompt(client):
+    # The coach's focus text must appear in the assembled prompt, not just drive retrieval.
+    provider = FakeProvider(_plan_json(["push_up"]))
+    workout.generate_workout(client, provider, "member_ava", query="shoulder-safe upper body")
+    assert provider.last_messages is not None, "LLM should have been called"
+    user = provider.last_messages[1]["content"]
+    assert "shoulder-safe upper body" in user
 
 
 def test_postvalidate_strips_injected_unsafe_pick(client):
